@@ -98,13 +98,6 @@ export function bouquet(s){
     return mix(rgb(rose?0x865e66:star?0x557e9a:0x756480),rgb(fill),Math.min(1,.23+.71*v+.08*Math.abs(2*u-1)+.025*cos(k*3)));
    });
   }
-  if(roundRoses&&rose){
-   // The receptacle belongs to each individual head and joins its petals to its stem.
-   sheet(10,4,(u,v)=>{
-    const a=TAU*u, radius=.045+.32*sin(v*PI*.55);
-    return P(radius*cos(a),radius*sin(a),-.53+.37*v+.09*v*v*cos(5*a+phase));
-   },(u,v)=>mix(rgb(0x465740),rgb(0x948575),.52*v));
-  }
   if(lily||star){
    bead(P(0,0,.17),mul([.09,.09,.08],size),star?0xe7c998:0xb9b481);
    if(lily)for(let k=0;k<6;k++){
@@ -235,6 +228,10 @@ export function bouquet(s){
  let tagSurface;
  if(roundRoses){
   // Overlap individual folded sheets around the rim, with a narrow inner lining.
+  sheet(72,5,(u,v)=>{
+   const a=TAU*u,r=crownRadius+(.10+.19*v);
+   return crownPoint(r*cos(a),r*sin(a),crownRadius*(-.08-.21*v)-.20);
+  },()=>rgb(papers[2]));
   for(let layer=0;layer<2;layer++){
    const panels=[12,14,10][s.fold]+layer*2;
    for(let k=0;k<panels;k++){
@@ -244,8 +241,8 @@ export function bouquet(s){
      const a=angle+(u-.5)*TAU/panels*1.38;
      const corner=Math.abs(2*u-1),crease=sin(PI*u);
      const flare=(layer?.095:.17)+(.085*corner+.03*sin(3*k))*v;
-     const radius=crownRadius*(layer?1.045:1.05+flare)+.14;
-     const depth=crownRadius*(layer?-.095:-.37)+.25*corner-.23*crease;
+     const radius=crownRadius*(1.05+flare)+.14;
+     const depth=crownRadius*(-.23-.14*(1-layer))+.25*corner-.23*crease;
      const tip=crownPoint(radius*cos(a),radius*sin(a),depth);
      const base=[.25*waist*cos(a),tie[1],.25*waist*sin(a)+tie[2]];
      return mix(base,tip,v);

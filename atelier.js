@@ -1,4 +1,4 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=petal3';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=petal2';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
