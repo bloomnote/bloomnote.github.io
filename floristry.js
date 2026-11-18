@@ -62,11 +62,11 @@ export function bouquet(s){
     if(rose){
      if(roundRoses){
       // Petals start together at the calyx and wrap up around the spiral heart.
-      const reach=.10+.64*layer, shoulder=sin(v*PI*.57);
-      const az=angle+t*(1.16+.18*(1-layer))+.55*v*(1-layer);
-      const radius=.04+reach*shoulder*(1-.09*t*t)+.035*t*v;
-      const height=-.51+.17*(1-layer)+v*(.75+.14*(1-layer))
-       -.20*t*t*v+.045*sin(3*t+phase+k)*v*v+.09*sin(PI*v);
+      const reach=.085+.65*layer, shoulder=sin(v*PI*.57);
+      const az=angle+t*(.94+.17*(1-layer))+.63*v*(1-layer);
+      const radius=.035+reach*(.72*shoulder+.28*v*v*v)*(1-.19*t*t)+.038*t*v+.024*v*v*cos(2.8*t+.65*k);
+      const height=-.51+.17*(1-layer)+v*(.64+.25*(1-layer))
+       -.28*t*t*v+.032*sin(3*t+phase+k)*v*v+.09*sin(PI*v);
       return P(radius*cos(az),radius*sin(az),height);
      }
      const rim=.09+.56*layer,flare=v*v*(.12+.15*layer);
@@ -91,6 +91,7 @@ export function bouquet(s){
     }
     return P(rad*cos(angle)-width*t*sin(angle),rad*sin(angle)+width*t*cos(angle),depth);
    },(u,v)=>{
+    if(roundRoses&&rose)return mix(rgb(0xb47780),rgb(0xffdbd0),.22+.73*v+.045*cos(phase+k));
     if(lily){
      const t=Math.abs(u*2-1),rib=pow(Math.max(0,cos(t*PI*5+.7*v)),5);
      return mul(mix(rgb(0xafbd88),rgb(0xfffef5),1-pow(1-v,3)*(.80-.42*t)),1-.037*rib*sin(PI*v));
@@ -123,7 +124,7 @@ export function bouquet(s){
  // Place equal-sized heads across the area of a shallow spherical cap.
  const crownRadius=.49*Math.sqrt(flowers.length);
  const crownPoint=(x,y,depth)=>[x,1+depth,-y];
- const crownHeight=f=>crownRadius*(.57-.70*f)-.10;
+ const crownHeight=f=>crownRadius*(.28-.38*f)-.10;
  const crownNormal=[];
  const layout=flowers.map(([kind,i],index)=>{
   if(roundRoses){
@@ -133,8 +134,8 @@ export function bouquet(s){
    const radius=crownRadius*Math.sqrt(fraction)*(1.08-.08*fraction);
    const x=radius*cos(angle),y=radius*sin(angle);
    const height=crownHeight((radius/crownRadius)**2);
-   crownNormal.push(unit([1.4*x/crownRadius,1,-1.4*y/crownRadius]));
-   return [...crownPoint(x,y,height+.045*sin(i*2.1)),.87+.028*cos(i*3),kind,i];
+   crownNormal.push(unit([.76*x/crownRadius,1,-.76*y/crownRadius]));
+   return [...crownPoint(x,y,height+.045*sin(i*2.1)),1.02+.052*cos(i*3),kind,i];
   }
   if(i<heads.length)return [...heads[i],kind,i];
   const j=i-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+4)*.55;
@@ -244,12 +245,19 @@ export function bouquet(s){
   for(let k=0;k<panels;k++){
    const surface=(u,v)=>{
     const t=2*u-1,a=TAU*k/panels+t*PI/panels*1.24;
-    const edge=crownRadius+.27+.09*cos(PI*t);
+    const fold=.5+.5*cos(PI*(t+.16*sin(k)));
+    const edge=crownRadius*(1.08+.105*fold)+.32;
     const r=standRadius+(edge-standRadius)*sin(v*PI*.47);
-    const top=1+crownHeight(1)-.26+.11*cos(PI*t+.65*k);
+    const top=1+crownHeight(1)-.23+.26*cos(PI*t+.65*k);
     return [r*cos(a),tie[1]+(top-tie[1])*v,-r*sin(a)];
    };
    sheet(16,10,surface,(u,v)=>mul(rgb(papers[k%4===2?1:0]),.83+.10*u+.05*v));
+   // A short underfold follows each sheet, low enough to frame the outer roses.
+   sheet(14,6,(u,v)=>{
+    const a=TAU*(k+.22)/panels+(2*u-1)*PI/panels*1.42;
+    const wave=sin(PI*u),corner=Math.abs(2*u-1),r=crownRadius+.05+v*(.38+crownRadius*(.08+.15*corner+.035*sin(k)));
+    return [r*cos(a),1+crownHeight(1)-.31+.27*wave+.26*sin(PI*v)-.30*v*v+.28*(u-.5)*v,-r*sin(a)];
+   },(u,v)=>mul(rgb(papers[k%3===0?1:0]),.70+.22*u+.13*v));
    if(k===Math.floor(panels*.38))tagSurface=surface;
   }
  }else wings.forEach(([center,span,height],k)=>{

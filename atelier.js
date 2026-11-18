@@ -1,4 +1,4 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=lowdome';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=overhead1';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
@@ -90,7 +90,7 @@ photo.onpointermove=e=>{
  if(!drag||drag.id!==e.pointerId)return;
  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
  if(!drag.moved&&Math.hypot(dx,dy)<6)return;
- drag.moved=true;yaw-=dx*.012;pitch=Math.max(-.6,Math.min(.65,pitch+dy*.009));
+ drag.moved=true;yaw-=dx*.012;pitch=(pitch+dy*.009)%(2*Math.PI);
  drag.x=e.clientX;drag.y=e.clientY;draw();
 };
 function endDrag(e){
@@ -101,6 +101,10 @@ function endDrag(e){
 photo.onlostpointercapture=photo.onpointercancel=endDrag;
 photo.onpointerup=e=>{
  if(drag?.id!==e.pointerId){endDrag(e);return;}
+ if(drag.moved&&!pinch){
+  const pole=Math.PI/2+Math.round((pitch-Math.PI/2)/Math.PI)*Math.PI;
+  if(Math.abs(pitch-pole)<.07){pitch=pole;draw();}
+ }
  const tapped=!drag.moved&&e.timeStamp-drag.started<450&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6;
  endDrag(e);
  if(!tapped||!state.card||!$('note').value.trim())return;
