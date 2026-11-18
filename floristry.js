@@ -29,6 +29,7 @@ export function stemsFor(s){
 }
 export function bouquet(s){
  const stems=stemsFor(s),flowers=stems.filter(([k])=>k<3),fillers=stems.filter(([k])=>k>=3);
+ const roundRoses=flowers.length>=24&&flowers.every(([kind])=>kind===1);
  const dense=stems.length>27;
 
  const points=[],colors=[],indices=[];
@@ -50,19 +51,19 @@ export function bouquet(s){
   const z=unit(direction),x=unit(cross([0,1,0],z)),y=cross(z,x);
   const P=(a,b,c)=>add(p,mul(add(add(mul(x,a),mul(y,b)),mul(z,c)),size));
   const lily=kind===0,rose=kind===1,star=kind===3;
-  let count=lily?6:rose?(dense?13:21):star?5:6;
+  let count=lily?6:rose?(roundRoses?19:dense?13:21):star?5:6;
   for(let k=0;k<count;k++){
    const layer=rose?1-k/count:1;
    const angle=phase+(rose?k*2.39996:k*TAU/count)+(lily?.075*sin(k*2.4+phase):0);
    const fill=lily?0xfff5e9:rose?0xe5b5ad:star?0x9abdd4:0xcab4ce;
-   sheet(dense?5:lily?18:rose?12:7,dense?4:lily?24:12,(u,v)=>{
+   sheet(roundRoses&&rose?8:dense?5:lily?18:rose?12:7,dense?4:lily?24:12,(u,v)=>{
     const t=u*2-1;
     let rad,width,depth;
     if(rose){
      const rim=.09+.56*layer,flare=v*v*(.12+.15*layer);
-     const radius=rim*(.46+.54*v)+flare*(1-t*t)+.038*t*v;
+     const radius=(roundRoses?.045*v*v*cos(5*t+phase+k):0)+rim*(.46+.54*v)+flare*(1-t*t)+.038*t*v;
      const azimuth=angle+t*(1.03+.19*(1-layer))+.40*v*(1-layer);
-     const lip=v*(.33+.18*(1-layer)-.14*t*t+.045*t);
+     const lip=(roundRoses?.045*v*v*sin(4*t+k):0)+v*(.33+.18*(1-layer)-.14*t*t+.045*t);
      return P(radius*cos(azimuth),radius*sin(azimuth),-.15+.20*(1-layer)+lip);
     } else if(kind===2){
      const radius=(.075+.36*sin(PI*v*.83))*(1+.085*cos(phase))+(k%2)*.029;
@@ -97,20 +98,39 @@ export function bouquet(s){
   }
  }
  const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(...flowers.map(([,i])=>i)))-2)*.55):0;
- const tie=[0,-1.30-extent*.94,0];
+ const tie=[0,-1.30-extent*.94,roundRoses?-.29*Math.sqrt(flowers.length):0];
  const lilyStudy=s.blooms.length===1&&s.blooms[0]===0;
  const single=s.blooms.length===1?s.blooms[0]:-1;
  const roseHeads=[[-.42,.57,.47,.77],[.42,.87,.33,.81],[-.27,1.39,.04,.65],[.54,1.67,-.12,.52],[.12,.13,.67,.70]];
  const tulipHeads=[[-.66,.92,.30,.77],[.46,1.15,.31,.82],[-.23,1.65,-.03,.76],[.20,.58,.52,.73],[.73,1.66,-.28,.63]];
  const heads=single===1?roseHeads:single===2?tulipHeads:lilyStudy?[[-.28,.44,.47,.97],[.40,1.17,.29,.88]]:[[-.35,.36,.83,.94],[.52,1.02,.30,.82],[-.54,1.48,-.12,.73],[.78,.53,-.49,.60],[-.88,.68,-.38,.60],[.12,1.43,-.60,.60]];
- const layout=flowers.map(([kind,i])=>{
+ // Place equal-sized heads across the area of a shallow spherical cap.
+ const crownRadius=.49*Math.sqrt(flowers.length);
+ const crownPoint=(x,y,depth)=>[x,1+y*.73+depth*.68,-y*.68+depth*.73];
+ const crownNormal=[];
+ const layout=flowers.map(([kind,i],index)=>{
+  if(roundRoses){
+   const fraction=(index+.5)/flowers.length;
+   const angle=index*2.399963+.18;
+   const radius=crownRadius*Math.sqrt(fraction);
+   const x=radius*cos(angle),y=radius*sin(angle);
+   const height=crownRadius*(.40-.48*fraction);
+   crownNormal.push(unit([.70*x/crownRadius,.68+.56*y/crownRadius,.73-.52*y/crownRadius]));
+   return [...crownPoint(x,y,height),.62+.035*cos(i*3),kind,i];
+  }
   if(i<heads.length)return [...heads[i],kind,i];
   const j=i-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+4)*.55;
   return [radius*cos(angle),1.18-.81*radius*sin(angle),.52*radius*sin(angle)-.09*radius,kind===0?.59:.64,kind,i];
  });
- layout.forEach(([x,y,z,r,kind,i])=>{
+ if(roundRoses){
+  sheet(64,12,(u,v)=>{
+   const a=TAU*u,r=(crownRadius+.12)*v;
+   return crownPoint(r*cos(a),r*sin(a),crownRadius*(.40-.48*v*v)-.23);
+  },()=>rgb(0x966f73));
+ }
+ layout.forEach(([x,y,z,r,kind,i],index)=>{
   const p=[x,y,z];
-  const facing=i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
+  const facing=roundRoses?crownNormal[index]:i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
   if(kind===2){
    let previous=tie;
    for(let j=1;j<=8;j++){
@@ -146,7 +166,7 @@ export function bouquet(s){
   if(kind===4&&k>=8&&k<12)continue;
   const a=k*2.39996+.45,x=cos(a),z=sin(a);
   const radius=k<8?1:1+.16*Math.sqrt(k-7);
-  const end=[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
+  const end=roundRoses?crownPoint(x*crownRadius*1.03,z*crownRadius*1.03,.06):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
 
   const elbow=mix(tie,end,.64);elbow[0]-=.08;stem(tie,elbow,.021);stem(elbow,end,.014);
   for(let j=0;j<5;j++){
@@ -187,7 +207,7 @@ export function bouquet(s){
   const fernTips=[[-1.04,1.29,.38],[.96,.81,.41],[-.85,.34,.83],[.67,1.50,-.34]];
   for(const [kind,slot] of fillers){
    if(kind!==4||slot<8||slot>=12)continue;
-   const [x,y,z]=fernTips[slot-8];
+   const [x,y,z]=roundRoses?crownPoint(crownRadius*cos(slot*2.4),crownRadius*sin(slot*2.4),.18):fernTips[slot-8];
    const b=mix(tie,[x,y,z],.55),top=[x,y,z];stem(b,top,.012);stem(tie,b,.018);
    for(let j=1;j<=9;j++)for(const sign of [-1,1]){
     const v=j/11,anchor=mix(b,top,v),l=.26*sin(PI*v)+.06;
@@ -202,7 +222,32 @@ export function bouquet(s){
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
  let tagSurface;
- wings.forEach(([center,span,height],k)=>{
+ if(roundRoses){
+  // Overlap individual folded sheets around the rim, with a narrow inner lining.
+  sheet(72,5,(u,v)=>{
+   const a=TAU*u,r=crownRadius+(.10+.19*v);
+   return crownPoint(r*cos(a),r*sin(a),crownRadius*(-.08-.21*v)-.20);
+  },()=>rgb(papers[2]));
+  for(let layer=0;layer<2;layer++){
+   const panels=[12,14,10][s.fold]+layer*2;
+   for(let k=0;k<panels;k++){
+    const angle=TAU*(k+.38*layer)/panels;
+    const tint=rgb(papers[layer?2:k%4===1?1:0]);
+    const surface=(u,v)=>{
+     const a=angle+(u-.5)*TAU/panels*1.38;
+     const corner=Math.abs(2*u-1),crease=sin(PI*u);
+     const flare=(layer?.095:.17)+(.085*corner+.03*sin(3*k))*v;
+     const radius=crownRadius*(1.05+flare)+.14;
+     const depth=crownRadius*(-.23-.14*(1-layer))+.25*corner-.23*crease;
+     const tip=crownPoint(radius*cos(a),radius*sin(a),depth);
+     const base=[.25*waist*cos(a),tie[1],.25*waist*sin(a)+tie[2]];
+     return mix(base,tip,v);
+    };
+    sheet(12,8,surface,(u,v)=>mul(tint,.80+.18*Math.abs(2*u-1)+.07*v));
+    if(layer===1&&k===Math.floor(panels*.38))tagSurface=surface;
+   }
+  }
+ }else wings.forEach(([center,span,height],k)=>{
   if(s.fold===1)height+=k<2?.37:-.22;
   if(s.fold===2){span*=1.19;height=k===2?.99:k===3?-.22:.88;}
   const base=rgb(papers[k===2?2:k===1?1:0]);
@@ -229,7 +274,25 @@ export function bouquet(s){
   sheet(4,18,(u,v)=>[sign*(.05+.31*v+.13*sin(v*PI*1.4))+(u-.5)*.105,-1.36-v*(sign===1?.92:.75)+.06*u*v,.24+.16*sin(PI*v)+.055*u],u=>mul(silk,.8+.24*u));
  }
  bead([0,-1.32,.25],[.115,.09,.076],silkColor);
- for(let i=handleStart;i<points.length;i+=3){points[i]*=waist;points[i+1]=tie[1]+(points[i+1]+1.30)*(1+.30*extent);points[i+2]*=waist;}
+ for(let i=handleStart;i<points.length;i+=3){points[i]*=waist;points[i+1]=tie[1]+(points[i+1]+1.30)*(1+.30*extent);points[i+2]=points[i+2]*waist+tie[2];}
+ if(roundRoses){
+  // Lay a slender satin bow over the upper-left flowers, following the dome.
+  const onRose=(x,y,lift)=>crownPoint(x*crownRadius,y*crownRadius,
+   crownRadius*(.40-.48*(x*x+y*y))+.35+lift);
+  const knot=[-.32,.27];
+  for(const sign of [-1,1]){
+   sheet(5,24,(u,v)=>{
+    const arch=sin(PI*v),t=2*u-1;
+    return onRose(knot[0]+sign*(.30*arch+.025*t),knot[1]+.12*sin(TAU*v)+.044*t,.32*arch);
+   },(u,v)=>mul(silk,.74+.30*u+.16*sin(PI*v)));
+   sheet(4,32,(u,v)=>{
+    const x=knot[0]+(sign>0?1.12*v:-.28*v)+.044*(2*u-1);
+    const y=knot[1]-(sign>0?.28:1.13)*v+.055*sin(TAU*v);
+    return onRose(x,y,.12*sin(PI*v));
+   },u=>mul(silk,.85+.21*u));
+  }
+  bead(onRose(...knot,.12),[.16,.12,.12],silkColor);
+ }
  const cardStart=indices.length;
  if(s.card){
   // Clip the tag to the outer left shoulder, just beneath its paper lip.
