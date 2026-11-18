@@ -57,3 +57,10 @@ input{width:100%;padding:6px}[hidden]{display:none!important}
 .actions{flex-wrap:wrap}
 @font-face{font-family:HuiwenLetters;src:url('./huiwen-letters.otf') format('opentype');font-display:swap}
 #note,#letter-text{font-family:BloomnoteHuiwen,HuiwenLetters,var(--serif)}
+
+.quantity{display:inline-grid;grid-template-columns:2.6em 3.2em 2.6em;align-items:center;border:1px solid #c8cbba;background:#fffdf655;padding:5px 4px;color:var(--ink)}
+.quantity label{grid-column:1/-1;text-align:center;font-size:14px}
+.quantity button{border:0;background:transparent;min-height:38px;padding:0;font-size:18px}
+.quantity button:disabled{opacity:.32}
+.quantity input{min-width:0;text-align:center;border:0;border-bottom:1px solid var(--rule);background:transparent;color:inherit;font:inherit;appearance:textfield}
+.quantity input::-webkit-inner-spin-button{appearance:none}

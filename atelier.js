@@ -1,4 +1,4 @@
-import {bouquet,options,initial} from './floristry.js';
+import {bouquet,options,initial,stemsFor} from './floristry.js';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
@@ -16,6 +16,20 @@ function decode(hash){
   const values=[...part].map(Number);
   if(values.some(v=>v>=options[key].length)||new Set(values).size!==values.length)return null;
   state[key]=multi?values:values[0];
+ }
+ const raw=new URLSearchParams(location.hash.slice(1)).get('stems');
+ if(raw!==null){
+  const tokens=raw.split('.');
+  if(tokens.length>128)return null;
+  const seen=new Set(),counts=[0,0,0,0,0],stems=[];
+  for(const token of tokens){
+   if(!/^[0-4][0-9a-z]{1,2}$/.test(token))return null;
+   const kind=Number(token[0]),slot=parseInt(token.slice(1),36),key=(kind<3?'flower':'sprig')+slot;
+   if(slot>=128||seen.has(key)||++counts[kind]>99)return null;
+   seen.add(key);stems.push([kind,slot]);
+  }
+  if(!stems.some(([kind])=>kind<3))return null;
+  state.stems=stems;
  }
  return state;
 }
@@ -86,18 +100,57 @@ function openNote(){
  $('letter').style.backgroundColor=palette.card[state.card];
  $('letter').showModal();
 };
+function quantityControl(kind,name){
+ const stems=stemsFor(state),count=stems.filter(([k])=>k===kind).length;
+ const flowers=stems.filter(([k])=>k<3).length;
+ const minimum=kind<3&&flowers===count?1:0,maximum=Math.min(99,128-stems.length+count);
+ const group=document.createElement('div');group.className='quantity';
+ const label=document.createElement('label'),input=document.createElement('input');
+ label.htmlFor=input.id='count-'+kind;label.textContent=name;
+ const minus=document.createElement('button'),plus=document.createElement('button');
+ minus.textContent='−';plus.textContent='＋';
+ minus.setAttribute('aria-label','减少'+name);plus.setAttribute('aria-label','增加'+name);
+ input.type='number';input.inputMode='numeric';input.value=count;input.min=minimum;input.max=maximum;
+ minus.disabled=count===minimum;plus.disabled=count===maximum;
+ function change(value,focus){
+  if(!Number.isInteger(value)||value<minimum||value>maximum){
+   input.value=count;status('这项可选 '+minimum+' 至 '+maximum+' 枝');return;
+  }
+  if(value===count)return;
+  const next=stems.slice();
+  if(value<count){
+   let remove=count-value;
+   for(let j=next.length-1;j>=0&&remove;j--)if(next[j][0]===kind){next.splice(j,1);remove--;}
+  }else{
+   const occupied=new Set(next.filter(([k])=>(k<3)===(kind<3)).map(([,i])=>i));
+   let slot=0;
+   for(let j=count;j<value;j++){
+    while(occupied.has(slot))slot++;
+    next.push([kind,slot]);occupied.add(slot++);
+   }
+  }
+  state.stems=next;update();panel();status('');
+  if(focus)document.getElementById(input.id).parentElement.querySelector(focus)?.focus({preventScroll:true});
+ }
+ minus.className='minus';plus.className='plus';
+ minus.onclick=()=>change(count-1,'.minus');plus.onclick=()=>change(count+1,'.plus');
+ input.onchange=()=>change(input.valueAsNumber,null);
+ input.onkeydown=e=>{if(e.key==='Enter')input.blur();};
+ group.append(label,minus,input,plus);return group;
+}
 function panel(){
  $('note-field').hidden=tab!==3||!state.card;
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
-  button.setAttribute('aria-pressed',String(Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
+  button.onclick=()=>{delete state.stems;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
  $('picker').replaceChildren(...steps[tab][1].map(key=>{
   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
   options[key].forEach((name,i)=>{
+   if(key==='blooms'||key==='sprigs'){row.append(quantityControl(key==='blooms'?i:i+3,name));return;}
    const b=document.createElement('button'),list=Array.isArray(state[key]),active=list?state[key].includes(i):state[key]===i;
    if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
    b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
@@ -115,12 +168,13 @@ function finish(done){
  $('read-note').hidden=!done||!state.card||!$('note').value.trim();
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
- $('receipt').textContent=state.blooms.map(i=>options.blooms[i]).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ $('receipt').textContent=[...options.blooms,...options.sprigs].map((name,i)=>{const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(i<3?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
  status('');$('url').hidden=true;if(done)front();
 }
 panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
 $('share').onclick=async()=>{
  const url=new URL(location.href);url.hash='flower='+keys.map(k=>[].concat(state[k]).join('')).join('-');
+ if(state.stems)url.hash+='&stems='+state.stems.map(([kind,slot])=>kind+slot.toString(36)).join('.');
  if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
  try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
  catch(e){if(e.name==='AbortError')return;$('url').value=url.href;$('url').hidden=false;$('url').select();status('复制这条链接即可分享花束');}
