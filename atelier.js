@@ -291,20 +291,28 @@ function giftURL(){
  if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
  return url.href;
 }
+function downloadFlower(file){
+ const link=document.createElement('a'),url=URL.createObjectURL(file);
+ link.href=url;link.download=file.name;document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
 $('ai-receipt').onclick=async()=>{
- const offsetText=Object.entries(state.moves||{}).map(([key,delta])=>{
-  const [kind,slot]=key.split('-');
-  const name=kind==='stock'?'百合附属花枝':[...options.blooms,...options.sprigs][Number(kind)];
-  const directions=[['左','右'],['下','上'],['后','前']];
-  return name+'（槽号 '+slot+'）'+delta.map((v,i)=>v?'向'+directions[i][Number(v>0)]+Math.abs(v):'').filter(Boolean).join('、');
- }).join('；');
- const text=['花间手帖 · 送给你的花束',$('receipt').textContent,
-  '包装：'+options.fold[state.fold]+'。背景：'+options.background[state.background]+'，'+options.direction[state.direction]+options.lamp[state.lamp]+'光。',
-  offsetText?'手动摆放：'+offsetText:'',
-  state.card?'贺卡（'+options.card[state.card]+'）：'+$('note').value:'无贺卡',
-  giftURL()].filter(Boolean).join('\n');
- try{await navigator.clipboard.writeText(text);status('花束单已复制，可以贴给对方了');}
- catch{$('url').value=text;$('url').hidden=false;$('url').select();status('长按复制这份花束单');}
+ const url=giftURL();
+ const blob=await new Promise(resolve=>snapshot().toBlob(resolve,'image/png'));
+ if(!blob){status('图片生成失败，请再试一次');return;}
+ const file=new File([blob],'送你一束花.png',{type:'image/png'});
+ const gift={files:[file],text:url,title:'送你一束花'};
+ if(navigator.canShare?.(gift)){
+  try{await navigator.share(gift);status('如果聊天里只有图片，可另点「复制收花链接」附上贺卡');return;}
+  catch(error){if(error.name==='AbortError')return;}
+ }
+ downloadFlower(file);
+ status('花束图已生成。把图片发到聊天里，想让对方拆卡时再附上收花链接。');
+};
+$('copy-gift').onclick=async()=>{
+ const url=giftURL();
+ try{await navigator.clipboard.writeText(url);status('已复制收花链接');}
+ catch{$('url').value=url;$('url').hidden=false;$('url').select();status('长按复制收花链接');}
 };
 $('share').onclick=async()=>{
  const url=new URL(giftURL());
