@@ -101,18 +101,17 @@ function openNote(){
  $('letter').showModal();
 };
 function quantityControl(kind,name){
- const stems=stemsFor(state),count=stems.filter(([k])=>k===kind).length;
- const flowers=stems.filter(([k])=>k<3).length;
- const minimum=kind<3&&flowers===count?1:0,maximum=Math.min(99,128-stems.length+count);
  const group=document.createElement('div');group.className='quantity';
  const label=document.createElement('label'),input=document.createElement('input');
  label.htmlFor=input.id='count-'+kind;label.textContent=name;
  const minus=document.createElement('button'),plus=document.createElement('button');
  minus.textContent='−';plus.textContent='＋';
  minus.setAttribute('aria-label','减少'+name);plus.setAttribute('aria-label','增加'+name);
- input.type='number';input.inputMode='numeric';input.value=count;input.min=minimum;input.max=maximum;
- minus.disabled=count===minimum;plus.disabled=count===maximum;
- function change(value,focus){
+ input.type='number';input.inputMode='numeric';input.dataset.kind=kind;
+ function change(value){
+ const stems=stemsFor(state),count=stems.filter(([k])=>k===kind).length;
+ const flowers=stems.filter(([k])=>k<3).length;
+ const minimum=kind<3&&flowers===count?1:0,maximum=Math.min(99,128-stems.length+count);
   if(!Number.isInteger(value)||value<minimum||value>maximum){
    input.value=count;status('这项可选 '+minimum+' 至 '+maximum+' 枝');return;
   }
@@ -129,14 +128,23 @@ function quantityControl(kind,name){
     next.push([kind,slot]);occupied.add(slot++);
    }
   }
-  state.stems=next;update();panel();status('');
-  if(focus)document.getElementById(input.id).parentElement.querySelector(focus)?.focus({preventScroll:true});
+  state.stems=next;update();refreshCounts();status('');
+  for(const b of $('recipes').children)b.setAttribute('aria-pressed','false');
  }
  minus.className='minus';plus.className='plus';
- minus.onclick=()=>change(count-1,'.minus');plus.onclick=()=>change(count+1,'.plus');
- input.onchange=()=>change(input.valueAsNumber,null);
- input.onkeydown=e=>{if(e.key==='Enter')input.blur();};
+ minus.onclick=()=>change(Number(input.value)-1);plus.onclick=()=>change(Number(input.value)+1);
+ input.onchange=input.onblur=()=>change(input.valueAsNumber);
+ input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();change(input.valueAsNumber);input.blur();}};
  group.append(label,minus,input,plus);return group;
+}
+function refreshCounts(){
+ const stems=stemsFor(state),flowers=stems.filter(([k])=>k<3).length;
+ for(const input of $('picker').querySelectorAll('input[data-kind]')){
+  const kind=Number(input.dataset.kind),n=stems.filter(([k])=>k===kind).length;
+  input.value=n;input.min=kind<3&&n===flowers?1:0;input.max=Math.min(99,128-stems.length+n);
+  input.previousElementSibling.disabled=n===Number(input.min);
+  input.nextElementSibling.disabled=n===Number(input.max);
+ }
 }
 function panel(){
  $('note-field').hidden=tab!==3||!state.card;
@@ -161,6 +169,7 @@ function panel(){
    };row.append(b);
   });field.append(legend,row);return field;
  }));
+ refreshCounts();
 }
 function status(msg){document.querySelector('output').textContent=msg;}
 function finish(done){
