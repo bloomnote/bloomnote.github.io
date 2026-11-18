@@ -1,7 +1,7 @@
 import {bouquet,options,initial,stemsFor} from './floristry.js?v=spray5';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=spray5';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
-function decode(hash){
+function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
  const parts=hash.slice(8).split('-');
  // Older gifts used the original gray backdrop.
@@ -17,7 +17,7 @@ function decode(hash){
   if(values.some(v=>v>=options[key].length)||new Set(values).size!==values.length)return null;
   state[key]=multi?values:values[0];
  }
- const raw=new URLSearchParams(location.hash.slice(1)).get('stems');
+ const raw=params.get('stems');
  if(raw!==null){
   const tokens=raw.split('.');
   if(tokens.length>128)return null;
@@ -31,7 +31,7 @@ function decode(hash){
   if(!stems.some(([kind])=>kind<3))return null;
   state.stems=stems;
  }
- const moves=new URLSearchParams(location.hash.slice(1)).get('move');
+ const moves=params.get('move');
  if(moves && moves.length<5000){
   state.moves={};
   for(const entry of moves.split('~')){
@@ -49,8 +49,31 @@ const recipes=[
  {id:'tulip',name:'亚麻紫郁金香',state:{...initial,blooms:[2],sprigs:[],fold:2,paper:2,ribbon:2}}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
-const giftParams=new URLSearchParams(location.hash.slice(1));
-let gift=decode(location.hash.split('&')[0]);
+function unpackGift(fragment){
+ if(!fragment.startsWith('#g1.'))return new URLSearchParams(fragment.slice(1));
+ const token=fragment.slice(4);
+ if(!/^[A-Za-z0-9_-]{1,20000}$/.test(token))throw new Error('Invalid gift');
+ const bytes=Uint8Array.from(atob(token.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+ const values=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+ if(!Array.isArray(values)||values.length!==4||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
+ const params=new URLSearchParams();
+ ['flower','stems','move','note'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
+ return params;
+}
+function packGift(values){
+ const bytes=new TextEncoder().encode(JSON.stringify(values));
+ return '#g1.'+btoa(String.fromCharCode(...bytes)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+let giftParams,gift;
+try{
+ giftParams=unpackGift(location.hash);
+ gift=giftParams.has('flower')?decode('#flower='+giftParams.get('flower'),giftParams):null;
+ if(location.hash.startsWith('#g1.')&&!gift)throw new Error('Invalid gift');
+}catch(error){
+ document.querySelector('.work').remove();
+ $('over').textContent='收花手帖';$('title').textContent='收花链接不完整，请重新复制';
+ throw error;
+}
 const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
 let yaw=0,pitch=.08,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0,hold=performance.now()+2800,tab=0,drag=null;
 const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
@@ -285,31 +308,15 @@ $('reply').onclick=()=>{
  panel();finish(false);front();
 };
 function giftURL(){
- const url=new URL(location.href);url.hash='flower='+keys.map(k=>[].concat(state[k]).join('')).join('-');
- if(state.stems)url.hash+='&stems='+state.stems.map(([kind,slot])=>kind+slot.toString(36)).join('.');
- if(state.moves&&Object.keys(state.moves).length)url.hash+='&move='+Object.entries(state.moves).map(([key,v])=>[key,...v].join(':')).join('~');
- if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
+ const flower=keys.map(k=>[].concat(state[k]).join('')).join('-');
+ const stems=(state.stems||[]).map(([kind,slot])=>kind+slot.toString(36)).join('.');
+ const moves=Object.entries(state.moves||{}).map(([key,v])=>[key,...v].join(':')).join('~');
+ const note=state.card?$('note').value.trim():'';
+ const url=new URL(location.pathname,location.origin);
+ url.hash=packGift([flower,stems,moves,note]);
  return url.href;
 }
-function downloadFlower(file){
- const link=document.createElement('a'),url=URL.createObjectURL(file);
- link.href=url;link.download=file.name;document.body.append(link);link.click();link.remove();
- setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
-$('ai-receipt').onclick=async()=>{
- const url=giftURL();
- const blob=await new Promise(resolve=>snapshot().toBlob(resolve,'image/png'));
- if(!blob){status('图片生成失败，请再试一次');return;}
- const file=new File([blob],'送你一束花.png',{type:'image/png'});
- const gift={files:[file],text:url,title:'送你一束花'};
- if(navigator.canShare?.(gift)){
-  try{await navigator.share(gift);status('如果聊天里只有图片，可另点「复制收花链接」附上贺卡');return;}
-  catch(error){if(error.name==='AbortError')return;}
- }
- downloadFlower(file);
- status('花束图已生成。把图片发到聊天里，想让对方拆卡时再附上收花链接。');
-};
-$('copy-gift').onclick=async()=>{
+$('ai-receipt').onclick=$('copy-gift').onclick=async()=>{
  const url=giftURL();
  try{await navigator.clipboard.writeText(url);status('已复制收花链接');}
  catch{$('url').value=url;$('url').hidden=false;$('url').select();status('长按复制收花链接');}
