@@ -60,6 +60,15 @@ export function bouquet(s){
     const t=u*2-1;
     let rad,width,depth;
     if(rose){
+     if(roundRoses){
+      // Petals start together at the calyx and wrap up around the spiral heart.
+      const reach=.10+.64*layer, shoulder=sin(v*PI*.57);
+      const az=angle+t*(1.16+.18*(1-layer))+.55*v*(1-layer);
+      const radius=.04+reach*shoulder*(1-.09*t*t)+.035*t*v;
+      const height=-.51+.17*(1-layer)+v*(.75+.14*(1-layer))
+       -.20*t*t*v+.045*sin(3*t+phase+k)*v*v+.09*sin(PI*v);
+      return P(radius*cos(az),radius*sin(az),height);
+     }
      const rim=.09+.56*layer,flare=v*v*(.12+.15*layer);
      const radius=(roundRoses?.045*v*v*cos(5*t+phase+k):0)+rim*(.46+.54*v)+flare*(1-t*t)+.038*t*v;
      const azimuth=angle+t*(1.03+.19*(1-layer))+.40*v*(1-layer);
@@ -89,6 +98,13 @@ export function bouquet(s){
     return mix(rgb(rose?0x865e66:star?0x557e9a:0x756480),rgb(fill),Math.min(1,.23+.71*v+.08*Math.abs(2*u-1)+.025*cos(k*3)));
    });
   }
+  if(roundRoses&&rose){
+   // The receptacle belongs to each individual head and joins its petals to its stem.
+   sheet(10,4,(u,v)=>{
+    const a=TAU*u, radius=.045+.32*sin(v*PI*.55);
+    return P(radius*cos(a),radius*sin(a),-.53+.37*v+.09*v*v*cos(5*a+phase));
+   },(u,v)=>mix(rgb(0x465740),rgb(0x948575),.52*v));
+  }
   if(lily||star){
    bead(P(0,0,.17),mul([.09,.09,.08],size),star?0xe7c998:0xb9b481);
    if(lily)for(let k=0;k<6;k++){
@@ -110,24 +126,19 @@ export function bouquet(s){
  const crownNormal=[];
  const layout=flowers.map(([kind,i],index)=>{
   if(roundRoses){
+   // Compress the outer spiral to keep neighbouring petals in contact on the slope.
    const fraction=(index+.5)/flowers.length;
    const angle=index*2.399963+.18;
-   const radius=crownRadius*Math.sqrt(fraction);
+   const radius=crownRadius*Math.sqrt(fraction)*(1.08-.08*fraction);
    const x=radius*cos(angle),y=radius*sin(angle);
    const height=crownRadius*(.40-.48*fraction);
    crownNormal.push(unit([.70*x/crownRadius,.68+.56*y/crownRadius,.73-.52*y/crownRadius]));
-   return [...crownPoint(x,y,height),.62+.035*cos(i*3),kind,i];
+   return [...crownPoint(x,y,height+.045*sin(i*2.1)),.87+.028*cos(i*3),kind,i];
   }
   if(i<heads.length)return [...heads[i],kind,i];
   const j=i-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+4)*.55;
   return [radius*cos(angle),1.18-.81*radius*sin(angle),.52*radius*sin(angle)-.09*radius,kind===0?.59:.64,kind,i];
  });
- if(roundRoses){
-  sheet(64,12,(u,v)=>{
-   const a=TAU*u,r=(crownRadius+.12)*v;
-   return crownPoint(r*cos(a),r*sin(a),crownRadius*(.40-.48*v*v)-.23);
-  },()=>rgb(0x966f73));
- }
  layout.forEach(([x,y,z,r,kind,i],index)=>{
   const p=[x,y,z];
   const facing=roundRoses?crownNormal[index]:i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
@@ -224,10 +235,6 @@ export function bouquet(s){
  let tagSurface;
  if(roundRoses){
   // Overlap individual folded sheets around the rim, with a narrow inner lining.
-  sheet(72,5,(u,v)=>{
-   const a=TAU*u,r=crownRadius+(.10+.19*v);
-   return crownPoint(r*cos(a),r*sin(a),crownRadius*(-.08-.21*v)-.20);
-  },()=>rgb(papers[2]));
   for(let layer=0;layer<2;layer++){
    const panels=[12,14,10][s.fold]+layer*2;
    for(let k=0;k<panels;k++){
@@ -237,8 +244,8 @@ export function bouquet(s){
      const a=angle+(u-.5)*TAU/panels*1.38;
      const corner=Math.abs(2*u-1),crease=sin(PI*u);
      const flare=(layer?.095:.17)+(.085*corner+.03*sin(3*k))*v;
-     const radius=crownRadius*(1.05+flare)+.14;
-     const depth=crownRadius*(-.23-.14*(1-layer))+.25*corner-.23*crease;
+     const radius=crownRadius*(layer?1.045:1.05+flare)+.14;
+     const depth=crownRadius*(layer?-.095:-.37)+.25*corner-.23*crease;
      const tip=crownPoint(radius*cos(a),radius*sin(a),depth);
      const base=[.25*waist*cos(a),tie[1],.25*waist*sin(a)+tie[2]];
      return mix(base,tip,v);
@@ -278,7 +285,7 @@ export function bouquet(s){
  if(roundRoses){
   // Lay a slender satin bow over the upper-left flowers, following the dome.
   const onRose=(x,y,lift)=>crownPoint(x*crownRadius,y*crownRadius,
-   crownRadius*(.40-.48*(x*x+y*y))+.35+lift);
+   crownRadius*(.40-.48*(x*x+y*y))+.51+lift);
   const knot=[-.32,.27];
   for(const sign of [-1,1]){
    sheet(5,24,(u,v)=>{
