@@ -1,4 +1,4 @@
-import {shades} from './botanicals.js?v=garden2';
+import {flowers,shades} from './botanicals.js?v=garden2';
 import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=garden2';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=garden2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
@@ -212,7 +212,7 @@ canvas.tabIndex=0;canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e
 function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotating&&!editing&&!drag&&t>hold&&!document.hidden){yaw+=Math.min(dt,100)*.00013;draw();}}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带',['ribbon']],['小卡',['card']],['背景与光',['background','direction','lamp']]];
 const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
-const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc','#ecd19e'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb','#e5b849','#adbbdc'],sprigs:['#9abdd4','#839582','#ab4550','#86a398'],paper:['#41414a','#9a8da0','#c7ae8c','#414634','#dedace','#92afb7'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0','#8c4049','#cda978'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc','#c3ccbb','#edd2bb']};
+const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc','#ecd19e'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb','#e5b849','#adbbdc',...flowers.map(([, , hex])=>'#'+hex)],sprigs:['#9abdd4','#839582','#ab4550','#86a398','#476943','#77856a','#476b4b','#f6f1de','#b6bcb0','#d8c4a0','#c7b98e'],paper:['#41414a','#9a8da0','#c7ae8c','#414634','#dedace','#92afb7'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0','#8c4049','#cda978'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc','#c3ccbb','#edd2bb']};
 $('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
 $('read-note').onclick=openNote;
 function openNote(){
@@ -264,7 +264,8 @@ function renderTones(){
  const active=[...new Set(stemsFor(state).map(([id])=>id).filter(isBloom))];
  area.replaceChildren(...active.map(id=>{
   const label=document.createElement('label'),select=document.createElement('select');
-  label.append(stemNames[id]+' · 花色 ');
+  label.append('花色 ');
+  select.setAttribute('aria-label',stemNames[id]+'的花色');
   for(const name of ['原色',...Object.keys(shades).filter(name=>name!=='白底紫边'||id===12)])select.add(new Option(name,name));
   select.value=state.tones?.[id]||'原色';
   select.onchange=()=>{
