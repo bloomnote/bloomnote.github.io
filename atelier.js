@@ -1,5 +1,6 @@
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=catalog1';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=catalog1';
+import {shades} from './botanicals.js?v=garden2';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=garden2';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=garden2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
@@ -11,9 +12,9 @@ function decode(hash,params){
  const state={};
  for(const [i,key] of keys.entries()){
   const part=parts[i],multi=Array.isArray(initial[key]);
-  if(!/^\d*$/.test(part)||part.length>(multi?options[key].length:1))return null;
+  if(!/^[0-9a-z]*$/.test(part)||part.length>(multi?options[key].length:1))return null;
   if(!part.length&&key!=='sprigs')return null;
-  const values=[...part].map(Number);
+  const values=[...part].map(c=>parseInt(c,36));
   if(values.some(v=>v>=options[key].length)||new Set(values).size!==values.length)return null;
   state[key]=multi?values:values[0];
  }
@@ -21,10 +22,13 @@ function decode(hash,params){
  if(raw!==null){
   const tokens=raw.split('.');
   if(tokens.length>128)return null;
-  const seen=new Set(),counts=Array(9).fill(0),stems=[];
+  const seen=new Set(),counts=Array(47).fill(0),stems=[];
   for(const token of tokens){
-   if(!/^[0-8][0-9a-z]{1,2}$/.test(token))return null;
-   const kind=Number(token[0]),slot=parseInt(token.slice(1),36),key=(isBloom(kind)?'flower':'sprig')+slot;
+   const parsed=/^(?:([0-8])|(\d{1,2}):)([a-z0-9]{1,2})$/.exec(token);
+   if(!parsed)return null;
+   const kind=Number(parsed[1]??parsed[2]),slot=parseInt(parsed[3],36);
+   if(!Object.hasOwn(stemNames,kind))return null;
+   const key=(isBloom(kind)?'flower':'sprig')+slot;
    if(slot>=128||seen.has(key)||++counts[kind]>99)return null;
    seen.add(key);stems.push([kind,slot]);
   }
@@ -40,6 +44,12 @@ function decode(hash,params){
    const delta=parts.map(Number);
    if(delta.every(v=>Number.isFinite(v)&&Math.abs(v)<=2))state.moves[key]=delta;
   }
+ }
+ const tones=params.get('tones');
+ if(tones){
+  const parsed=JSON.parse(tones);
+  if(!parsed||Array.isArray(parsed)||typeof parsed!=='object')return null;
+  state.tones=Object.fromEntries(Object.entries(parsed).filter(([id,name])=>isBloom(Number(id))&&Object.hasOwn(shades,name)));
  }
  return state;
 }
@@ -58,9 +68,9 @@ function unpackGift(fragment){
  if(!/^[A-Za-z0-9_-]{1,20000}$/.test(token))throw new Error('Invalid gift');
  const bytes=Uint8Array.from(atob(token.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
  const values=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
- if(!Array.isArray(values)||values.length!==4||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
+ if(!Array.isArray(values)||(values.length!==4&&values.length!==5)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
  const params=new URLSearchParams();
- ['flower','stems','move','note'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
+ ['flower','stems','move','note','tones'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
  return params;
 }
 function packGift(values){
@@ -247,7 +257,26 @@ function quantityControl(kind,name){
  input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();change(input.valueAsNumber);input.blur();}};
  group.append(label,minus,input,plus);return group;
 }
+function renderTones(){
+ const area=$('tones');
+ area.hidden=tab!==0;
+ if(area.hidden)return;
+ const active=[...new Set(stemsFor(state).map(([id])=>id).filter(isBloom))];
+ area.replaceChildren(...active.map(id=>{
+  const label=document.createElement('label'),select=document.createElement('select');
+  label.append(stemNames[id]+' · 花色 ');
+  for(const name of ['原色',...Object.keys(shades).filter(name=>name!=='白底紫边'||id===12)])select.add(new Option(name,name));
+  select.value=state.tones?.[id]||'原色';
+  select.onchange=()=>{
+   state.tones??={};
+   if(select.value==='原色')delete state.tones[id];else state.tones[id]=select.value;
+   update();
+  };
+  label.append(select);return label;
+ }));
+}
 function refreshCounts(){
+ renderTones();
  const stems=stemsFor(state),flowers=stems.filter(([k])=>isBloom(k)).length;
  for(const chip of $('picker').querySelectorAll('[data-kind]'))chip.setAttribute('aria-pressed',String(stems.some(([k])=>k===Number(chip.dataset.kind))));
  for(const input of $('counters').querySelectorAll('input[data-kind]')){
@@ -264,7 +293,7 @@ function panel(){
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{$('quantities').open=false;delete state.stems;delete state.moves;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.onclick=()=>{$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
@@ -300,7 +329,7 @@ function finish(done){
  $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
- $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(isBloom(i)?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(isBloom(i)?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
  status('');$('url').hidden=true;if(done)front();
 }
 panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
@@ -311,12 +340,12 @@ $('reply').onclick=()=>{
  panel();finish(false);front();
 };
 function giftURL(){
- const flower=keys.map(k=>[].concat(state[k]).join('')).join('-');
- const stems=(state.stems||[]).map(([kind,slot])=>kind+slot.toString(36)).join('.');
+ const flower=keys.map(k=>[].concat(state[k]).map(i=>i.toString(36)).join('')).join('-');
+ const stems=(state.stems||[]).map(([kind,slot])=>(kind>=9?kind+':':kind)+slot.toString(36)).join('.');
  const moves=Object.entries(state.moves||{}).map(([key,v])=>[key,...v].join(':')).join('~');
  const note=state.card?$('note').value.trim():'';
  const url=new URL(location.pathname,location.origin);
- url.hash=packGift([flower,stems,moves,note]);
+ url.hash=packGift([flower,stems,moves,note,...(Object.keys(state.tones||{}).length?[JSON.stringify(state.tones)]:[])]);
  return url.href;
 }
 $('share').onclick=async()=>{

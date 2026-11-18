@@ -1,3 +1,4 @@
+import {flowers as flowerCatalog,foliage,botanical,shades} from './botanicals.js?v=garden2';
 // Bouquet coordinates are in florist's view: x right, y up, z toward the viewer.
 const {sin,cos,PI,pow}=Math, TAU=PI*2;
 const add=(a,b)=>a.map((v,i)=>v+b[i]);
@@ -14,7 +15,9 @@ export const options={
  fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边'], paper:['炭墨','灰紫','亚麻','苔绿棉纸','奶白','海盐蓝'], ribbon:['雾蓝','藕紫','墨绿','象牙白','栗红','香槟金'], card:['无卡片','奶油白','灰粉','雾蓝','鼠尾草绿','淡杏']
 };
 // Stem ids 0–4 are used by previously shared gifts.
-export const bloomIds=[0,1,2,5,6],sprigIds=[3,4,7,8];
+options.blooms.push(...flowerCatalog.map(f=>f[0]));
+options.sprigs.push(...foliage);
+export const bloomIds=[0,1,2,5,6,...flowerCatalog.map((_,i)=>9+i)],sprigIds=[3,4,7,8,...foliage.map((_,i)=>40+i)];
 export const isBloom=id=>bloomIds.includes(id);
 export const stemNames=Object.fromEntries([...bloomIds.map((id,i)=>[id,options.blooms[i]]),...sprigIds.map((id,i)=>[id,options.sprigs[i]])]);
 export const initial={blooms:[0],sprigs:[0,1],fold:0,paper:3,ribbon:3,card:0,background:0,direction:0,lamp:0};
@@ -22,7 +25,7 @@ export const initial={blooms:[0],sprigs:[0,1],fold:0,paper:3,ribbon:3,card:0,bac
 export function stemsFor(s){
  if(s.stems)return s.stems;
  const stems=[];
- const n=s.blooms.length>1?6:s.blooms[0]===0?2:5;
+ const n=s.blooms.length>1?Math.max(6,s.blooms.length):s.blooms[0]===0?2:5;
  for(let i=0;i<n;i++)stems.push([bloomIds[s.blooms[i%s.blooms.length]],i]);
  for(let i=0;i<8;i++){
   if(i%2===0&&s.sprigs.includes(0))stems.push([3,i]);
@@ -76,6 +79,14 @@ export function bouquet(s,framing){
  function bloom(p,size,direction,kind,phase,openness=1){
   const z=unit(direction),x=unit(cross([0,1,0],z)),y=cross(z,x);
   const P=(a,b,c)=>add(p,mul(add(add(mul(x,a),mul(y,b)),mul(z,c)),size));
+  const variant=shades[s.tones?.[kind]];
+  const selected=variant?rgb(parseInt(variant,16)):null;
+  const petalColor=(base,v)=>selected?mul(selected,.57+.43*v):base;
+  if(kind>=9){
+   const [,form,hex]=flowerCatalog[kind-9];
+   botanical(form,{P,sheet,stem,bead,tint:selected||rgb(parseInt(hex,16)),phase,dense,purpleEdge:s.tones?.[kind]==='白底紫边'});
+   return;
+  }
   const lily=kind===0,rose=kind===1,star=kind===3;
   if(kind===5){
    const petals=dense?13:22;
@@ -84,7 +95,7 @@ export function bouquet(s,framing){
     sheet(4,6,(u,v)=>{
      const w=(2*u-1)*.14*pow(sin(PI*v),.7),r=.22+reach*v;
      return P(r*cos(a)-w*sin(a),r*sin(a)+w*cos(a),.06+.18*sin(PI*v)-.12*v*v+.07*(k%2)*v);
-    },(u,v)=>mix(rgb(0xbc701f),rgb(0xffdb68),.25+.72*v));
+    },(u,v)=>petalColor(mix(rgb(0xbc701f),rgb(0xffdb68),.25+.72*v),v));
    }
    sheet(18,5,(u,v)=>P(.32*v*cos(TAU*u),.32*v*sin(TAU*u),.09+.13*(1-v*v)),
     (u,v)=>mix(rgb(0x4f3123),rgb(0x986134),.2+.5*v+.18*cos(TAU*u*13)));
@@ -99,7 +110,7 @@ export function bouquet(s,framing){
      sheet(3,4,(u,v)=>{
       const w=(2*u-1)*.135*sin(PI*v*.86),l=.22*v;
       return P(r*cos(a)+l*cos(dir)-w*sin(dir),r*sin(a)+l*sin(dir)+w*cos(dir),h+.10*v+.05*sin(PI*v));
-     },(u,v)=>mix(rgb(j%3?0x858ebc:0x9185ad),rgb(0xd6e4f6),.19+.72*v));
+     },(u,v)=>petalColor(mix(rgb(j%3?0x858ebc:0x9185ad),rgb(0xd6e4f6),.19+.72*v),v));
     }
    }
    return;
@@ -144,6 +155,7 @@ export function bouquet(s,framing){
     }
     return P(rad*cos(angle)-width*t*sin(angle),rad*sin(angle)+width*t*cos(angle),depth);
    },(u,v)=>{
+    if(selected)return petalColor(null,v);
     if(roundRoses&&rose)return mix(rgb(0xb47780),rgb(0xffdbd0),.22+.73*v+.045*cos(phase+k));
     if(lily){
      const t=Math.abs(u*2-1),rib=pow(Math.max(0,cos(t*PI*5+.7*v)),5);
@@ -284,11 +296,44 @@ export function bouquet(s,framing){
  for(const [kind,k] of fillers){
   if(kind===4&&k>=8&&k<12)continue;
   const a=k*2.39996+.45,x=cos(a),z=sin(a);
-  const radius=k<8?1:1+.16*Math.sqrt(k-7);
+  const radius=k<8||kind>=40?1:1+.16*Math.sqrt(k-7);
   const baseEnd=roundRoses?crownPoint(x*crownRadius*.92,z*crownRadius*.92,crownHeight(.85)-.13):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
 
   const end=place(kind,k,baseEnd,.23);
   const route=routeSpray(end,k,kind);
+  if(kind>=40){
+   const {base,elbow,tip}=route;
+   stem(base,elbow,.016);stem(elbow,tip,.011);
+   let previous=tip;
+   for(let j=0;j<12;j++){
+    const t=(j+1)/12,a=k*1.7+j*2.4,side=j%2?1:-1;
+    const point=kind===42?add(tip,[.35*t,-.90*t,.18*t]):mix(elbow,tip,t);
+    if(kind===42){stem(previous,point,.009);previous=point;}
+    const spread=sin(PI*t)*.22+.05;
+    if(kind===40||kind===44){
+     for(const sign of [-1,1]){
+      const end=add(point,[sign*spread,.11,.04]);
+      leaf(point,end,kind===40?.033:.069,kind===40?0x476943:0xb6bcb0);
+      if(kind===44)leaf(point,add(end,[-sign*.05,.07,.04]),.04,0xabb2a9);
+     }
+    }else if(kind===41||kind===42){
+     const end=add(point,[side*(kind===42?.17:.25),kind===42?-.09:.12,.06]);
+     leaf(point,end,kind===42?.105:.048,kind===42?0x476b4b:0x77856a);
+     if(kind===42)leaf(point,add(end,[-side*.14,.05,0]),.07,0x476b4b);
+    }else if(kind===43){
+     const b=add(point,[side*.13,.11,.05]);stem(point,b,.006,0x89785e);
+     for(let n=0;n<4;n++)bead(add(b,[.035*cos(n*1.57),.035*sin(n*1.57),0]),[.033,.032,.024],0xf6f1de);
+    }else{
+     const count=kind===45?7:2;
+     for(let n=0;n<count;n++){const az=a+n*2.4;
+      const end=add(point,[spread*cos(az),.17+.06*cos(j),spread*sin(az)]);
+      if(kind===45)leaf(point,end,.023,0xd8c4a0);
+      else{stem(point,end,.004,0xb8ab79);bead(end,[.024,.068,.025],0xc7b98e);}
+     }
+    }
+   }
+   continue;
+  }
   stem(route.base,route.elbow,.021);stem(route.elbow,route.tip,.014);
   for(const [j,[anchor,tip]] of route.branches.entries()){
    if(kind===3){
@@ -443,7 +488,7 @@ export function bouquet(s,framing){
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }
  let fit=1,middle=.04;
- if(s.stems){
+ if(s.stems||flowers.length>6||fillers.length>12){
   let radius=0;
   for(let i=0;i<points.length;i+=3)radius=Math.max(radius,Math.hypot(points[i],points[i+2]));
   let top=-Infinity,bottom=Infinity;
