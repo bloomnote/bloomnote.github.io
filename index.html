@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#263e35"><title>花间手帖 · 赛博花店</title><link rel="stylesheet" href="./atelier.css">
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#263e35"><title>花间手帖 · 赛博花店</title><link rel="stylesheet" href="./atelier.css?v=zoom1">
 <main><header><img class="signature" src="./bloomnote.png" alt="Bloomnote"><span class="shop">花间手帖</span></header>
 <div class="heading"><div><p id="over">花艺工作台</p><h1 id="title">包一束花</h1></div></div>
-<div class="work"><section class="exhibit" aria-label="立体花束预览"><div class="glass"><canvas aria-label="拖动旋转立体花束" id="flower"></canvas><img id="photo" alt="当前角度的花束" draggable="false"></div><div class="viewbar"><button id="front">回到正面</button><span>拖动旋转 · 长按存图</span><button id="turn">自动旋转</button></div></section>
-<section class="desk"><div id="editor"><fieldset><legend>试一束搭配</legend><div class="choices" id="recipes"></div></fieldset><nav aria-label="搭配步骤"></nav><div id="picker"></div><label id="note-field" hidden>贺卡正文<textarea id="note" rows="5" maxlength="400" placeholder="写下想随花送出的话，也可以署名"></textarea></label><button class="primary" id="finish">完成搭配</button></div>
+<div class="work"><section class="exhibit" aria-label="立体花束预览"><div class="glass"><canvas aria-label="拖动旋转立体花束" id="flower"></canvas><img id="photo" alt="当前角度的花束" draggable="false"><div class="zoom" aria-label="花束缩放"><button id="smaller" aria-label="缩小花束">−</button><button id="scale" aria-label="恢复原大小">1×</button><button id="larger" aria-label="放大花束">＋</button></div></div><div class="viewbar"><button id="front">回到正面</button><span>拖动旋转 · 长按存图</span><button id="turn">自动旋转</button></div></section>
+<section class="desk"><div id="editor"><fieldset><legend>试一束搭配</legend><div class="choices" id="recipes"></div></fieldset><nav aria-label="搭配步骤"></nav><div id="picker"></div><details id="quantities"><summary>微调枝数</summary><div class="choices" id="counters"></div></details><label id="note-field" hidden>贺卡正文<textarea id="note" rows="5" maxlength="400" placeholder="写下想随花送出的话，也可以署名"></textarea></label><button class="primary" id="finish">完成搭配</button></div>
 <div id="finished" hidden><p id="receipt"></p><div class="actions"><button id="read-note" hidden>读贺卡</button><button class="primary" id="save">保存图片</button><button id="share">分享花束</button></div><button id="back">继续搭配</button></div>
 <output role="status"></output><input id="url" aria-label="花束分享链接" readonly hidden></section></div></main>
 <dialog id="letter" aria-label="随花贺卡"><p id="letter-text"></p><form method="dialog"><button>收起贺卡</button></form></dialog>
-<script type="module" src="./atelier.js?v=rosecrown"></script></html>
+<script type="module" src="./atelier.js?v=zoom1"></script></html>

@@ -53,6 +53,7 @@ export function prepare({points,colors,indices},direction=0,lamp=0){
  return vertices;
 }
 export function makeView(canvas){
+ let zoom=1;
  let mesh,gl=canvas.getContext('webgl',{alpha:true,antialias:true,preserveDrawingBuffer:true});
  let program,buffer,cam,scale,flat;
  if(gl){
@@ -67,7 +68,7 @@ export function makeView(canvas){
   cam=gl.getUniformLocation(program,'camera');scale=gl.getUniformLocation(program,'scale');
  }else flat=canvas.getContext('2d');
  function projectMesh(yaw,pitch){
-  const w=canvas.width,h=canvas.height,unit=Math.min(w/3.98,h/5.13);
+  const w=canvas.width,h=canvas.height,unit=zoom*Math.min(w/3.98,h/5.13);
   const cs=Math.cos(yaw),sn=Math.sin(yaw),ct=Math.cos(pitch),st=Math.sin(pitch);
   const projected=new Float32Array(mesh.length/2);
   for(let i=0,j=0;i<mesh.length;i+=6,j+=3){
@@ -93,7 +94,7 @@ export function makeView(canvas){
   return hit;
  }
  function render(yaw,pitch){
-  const w=canvas.width,h=canvas.height,unit=Math.min(w/3.98,h/5.13);
+  const w=canvas.width,h=canvas.height,unit=zoom*Math.min(w/3.98,h/5.13);
   const cs=Math.cos(yaw),sn=Math.sin(yaw),ct=Math.cos(pitch),st=Math.sin(pitch);
   if(gl){
    gl.viewport(0,0,w,h);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.uniform4f(cam,cs,sn,ct,st);gl.uniform2f(scale,unit*2/w,unit*2/h);gl.drawArrays(gl.TRIANGLES,0,mesh.length/6);return;
@@ -115,5 +116,5 @@ export function makeView(canvas){
   }
   flat.putImageData(img,0,0);
  }
- return {accelerated:!!gl,hitsCard,setMesh(data){mesh=data;if(gl)gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);},render};
+ return {accelerated:!!gl,hitsCard,setZoom(value){zoom=value;},setMesh(data){mesh=data;if(gl)gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);},render};
 }

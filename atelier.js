@@ -1,5 +1,5 @@
 import {bouquet,options,initial,stemsFor} from './floristry.js?v=rosecrown';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
  if(!hash.startsWith('#flower='))return null;
@@ -59,16 +59,38 @@ update();new ResizeObserver(resize).observe(canvas);resize();
 function rotation(){ $('turn').textContent=rotating?'暂停旋转':'开始旋转';$('turn').setAttribute('aria-pressed',String(rotating));}
 rotation();$('turn').onclick=()=>{rotating=!rotating;rotation();};
 function front(){yaw=0;pitch=.08;hold=performance.now()+2800;draw();} $('front').onclick=front;
+let zoom=1;
+function setZoom(value){
+ zoom=Math.max(.75,Math.min(3,value));view.setZoom(zoom);draw();
+ $('scale').textContent=Number(zoom.toFixed(2))+'×';
+ $('smaller').disabled=zoom<=.75;$('larger').disabled=zoom>=3;
+ hold=performance.now()+2500;
+}
+$('smaller').onclick=()=>setZoom(zoom/1.25);
+$('larger').onclick=()=>setZoom(zoom*1.25);
+$('scale').onclick=()=>setZoom(1);
+const pointers=new Map();
+let pinch=null;
+function separation(){
+ const [a,b]=pointers.values();
+ return Math.hypot(a.x-b.x,a.y-b.y);
+}
 const photo=$('photo');
 photo.src=snapshot().toDataURL('image/png');
 photo.onpointerdown=e=>{
- if(!e.isPrimary||e.button!==0)return;
+ if(e.button!==0||pointers.size>=2)return;
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});photo.setPointerCapture(e.pointerId);
+ if(pointers.size===2){
+  pinch={distance:Math.max(1,separation()),zoom};if(drag)drag.moved=true;return;
+ }
  drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,started:e.timeStamp};
  // Keep the native image menu attached to the same image that received the touch.
  photo.src=snapshot().toDataURL('image/png');
- photo.setPointerCapture(e.pointerId);
 };
 photo.onpointermove=e=>{
+ if(!pointers.has(e.pointerId))return;
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinch){setZoom(pinch.zoom*separation()/pinch.distance);return;}
  if(!drag||drag.id!==e.pointerId)return;
  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
  if(!drag.moved&&Math.hypot(dx,dy)<6)return;
@@ -76,11 +98,13 @@ photo.onpointermove=e=>{
  drag.x=e.clientX;drag.y=e.clientY;draw();
 };
 function endDrag(e){
- if(drag?.id===e.pointerId){drag=null;hold=performance.now()+2500;}
+ if(!pointers.delete(e.pointerId))return;
+ pinch=null;drag=null;hold=performance.now()+2500;
+ if(pointers.size){const [id,pt]=pointers.entries().next().value;drag={id,...pt,moved:true,started:e.timeStamp};}
 };
 photo.onlostpointercapture=photo.onpointercancel=endDrag;
 photo.onpointerup=e=>{
- if(drag?.id!==e.pointerId)return;
+ if(drag?.id!==e.pointerId){endDrag(e);return;}
  const tapped=!drag.moved&&e.timeStamp-drag.started<450&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6;
  endDrag(e);
  if(!tapped||!state.card||!$('note').value.trim())return;
@@ -139,7 +163,8 @@ function quantityControl(kind,name){
 }
 function refreshCounts(){
  const stems=stemsFor(state),flowers=stems.filter(([k])=>k<3).length;
- for(const input of $('picker').querySelectorAll('input[data-kind]')){
+ for(const chip of $('picker').querySelectorAll('[data-kind]'))chip.setAttribute('aria-pressed',String(stems.some(([k])=>k===Number(chip.dataset.kind))));
+ for(const input of $('counters').querySelectorAll('input[data-kind]')){
   const kind=Number(input.dataset.kind),n=stems.filter(([k])=>k===kind).length;
   input.value=n;input.min=kind<3&&n===flowers?1:0;input.max=Math.min(99,128-stems.length+n);
   input.previousElementSibling.disabled=n===Number(input.min);
@@ -151,17 +176,23 @@ function panel(){
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{delete state.stems;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.onclick=()=>{$('quantities').open=false;delete state.stems;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
  $('picker').replaceChildren(...steps[tab][1].map(key=>{
   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
   options[key].forEach((name,i)=>{
-   if(key==='blooms'||key==='sprigs'){row.append(quantityControl(key==='blooms'?i:i+3,name));return;}
-   const b=document.createElement('button'),list=Array.isArray(state[key]),active=list?state[key].includes(i):state[key]===i;
+   const b=document.createElement('button'),list=Array.isArray(state[key]),kind=key==='sprigs'?i+3:i,active=list?stemsFor(state).some(([k])=>k===kind):state[key]===i;
+   if(list)b.dataset.kind=kind;
    if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
    b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
+    if(list&&state.stems){
+     const input=$('count-'+kind),removing=b.getAttribute('aria-pressed')==='true';
+     if(removing&&Number(input.min)>0){status('至少留一种主花');return;}
+     input.value=removing?0:Math.min(kind===0?2:kind<3?5:4,Number(input.max));
+     input.dispatchEvent(new Event('change'));return;
+    }
     if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
     else state[key]=i;
     status('');if(key!=='background')update();
@@ -169,6 +200,8 @@ function panel(){
    };row.append(b);
   });field.append(legend,row);return field;
  }));
+ $('quantities').hidden=tab!==0;
+ if(tab===0)$('counters').replaceChildren(...[...options.blooms,...options.sprigs].map((name,k)=>quantityControl(k,name)));
  refreshCounts();
 }
 function status(msg){document.querySelector('output').textContent=msg;}
