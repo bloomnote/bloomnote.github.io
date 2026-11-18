@@ -1,4 +1,4 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=stand1';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=lowdome';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
@@ -46,9 +46,10 @@ const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
 const wall=document.createElement('canvas');
 wall.className='lit-wall';wall.setAttribute('aria-hidden','true');canvas.before(wall);
 function draw(){view.render(yaw,pitch);}
-let cardStart;
+let cardStart,frontPitch;
 function update(){
  const model=bouquet(state);cardStart=model.cardStart;
+ if(frontPitch!==model.frontPitch){frontPitch=model.frontPitch;pitch=frontPitch;}
  view.setMesh(prepare(model,state.direction,state.lamp));draw();
 }
 function resize(){
@@ -58,7 +59,7 @@ function resize(){
 update();new ResizeObserver(resize).observe(canvas);resize();
 function rotation(){ $('turn').textContent=rotating?'暂停旋转':'开始旋转';$('turn').setAttribute('aria-pressed',String(rotating));}
 rotation();$('turn').onclick=()=>{rotating=!rotating;rotation();};
-function front(){yaw=0;pitch=.08;hold=performance.now()+2800;draw();} $('front').onclick=front;
+function front(){yaw=0;pitch=frontPitch;hold=performance.now()+2800;draw();} $('front').onclick=front;
 let zoom=1;
 function setZoom(value){
  zoom=Math.max(.75,Math.min(3,value));view.setZoom(zoom);draw();

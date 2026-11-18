@@ -114,7 +114,7 @@ export function bouquet(s){
   }
  }
  const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(...flowers.map(([,i])=>i)))-2)*.55):0;
- const tie=[0,-1.30-extent*.94,roundRoses?-.04*Math.sqrt(flowers.length):0];
+ const tie=[0,roundRoses?1-.63*.49*Math.sqrt(flowers.length):-1.30-extent*.94,0];
  const lilyStudy=s.blooms.length===1&&s.blooms[0]===0;
  const single=s.blooms.length===1?s.blooms[0]:-1;
  const roseHeads=[[-.42,.57,.47,.77],[.42,.87,.33,.81],[-.27,1.39,.04,.65],[.54,1.67,-.12,.52],[.12,.13,.67,.70]];
@@ -122,8 +122,8 @@ export function bouquet(s){
  const heads=single===1?roseHeads:single===2?tulipHeads:lilyStudy?[[-.28,.44,.47,.97],[.40,1.17,.29,.88]]:[[-.35,.36,.83,.94],[.52,1.02,.30,.82],[-.54,1.48,-.12,.73],[.78,.53,-.49,.60],[-.88,.68,-.38,.60],[.12,1.43,-.60,.60]];
  // Place equal-sized heads across the area of a shallow spherical cap.
  const crownRadius=.49*Math.sqrt(flowers.length);
- const crownPoint=(x,y,depth)=>[x,1+y*.73+depth*.68,-y*.68+depth*.73];
- const crownHeight=f=>crownRadius*(.37-.53*f)-.10;
+ const crownPoint=(x,y,depth)=>[x,1+depth,-y];
+ const crownHeight=f=>crownRadius*(.57-.70*f)-.10;
  const crownNormal=[];
  const layout=flowers.map(([kind,i],index)=>{
   if(roundRoses){
@@ -133,7 +133,7 @@ export function bouquet(s){
    const radius=crownRadius*Math.sqrt(fraction)*(1.08-.08*fraction);
    const x=radius*cos(angle),y=radius*sin(angle);
    const height=crownHeight((radius/crownRadius)**2);
-   crownNormal.push(unit([.70*x/crownRadius,.68+.56*y/crownRadius,.73-.52*y/crownRadius]));
+   crownNormal.push(unit([1.4*x/crownRadius,1,-1.4*y/crownRadius]));
    return [...crownPoint(x,y,height+.045*sin(i*2.1)),.87+.028*cos(i*3),kind,i];
   }
   if(i<heads.length)return [...heads[i],kind,i];
@@ -150,6 +150,9 @@ export function bouquet(s){
     next[0]-=.28*x*sin(PI*t);next[2]-=.11*sin(PI*t);
     stem(previous,next,.026,0x687e53);previous=next;
    }
+  }else if(roundRoses){
+   const anchor=[x*.29,tie[1],z*.29];
+   stem(anchor,p,.042);
   }else stem(tie,p,.025);
   bloom(p,r,facing,kind,.75+i*1.92,lilyStudy&&i===1?.76:1);
  });
@@ -178,7 +181,7 @@ export function bouquet(s){
   if(kind===4&&k>=8&&k<12)continue;
   const a=k*2.39996+.45,x=cos(a),z=sin(a);
   const radius=k<8?1:1+.16*Math.sqrt(k-7);
-  const end=roundRoses?crownPoint(x*crownRadius*1.03,z*crownRadius*1.03,.06):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
+  const end=roundRoses?crownPoint(x*crownRadius*.92,z*crownRadius*.92,crownHeight(.85)-.13):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
 
   const elbow=mix(tie,end,.64);elbow[0]-=.08;stem(tie,elbow,.021);stem(elbow,end,.014);
   for(let j=0;j<5;j++){
@@ -219,7 +222,7 @@ export function bouquet(s){
   const fernTips=[[-1.04,1.29,.38],[.96,.81,.41],[-.85,.34,.83],[.67,1.50,-.34]];
   for(const [kind,slot] of fillers){
    if(kind!==4||slot<8||slot>=12)continue;
-   const [x,y,z]=roundRoses?crownPoint(crownRadius*cos(slot*2.4),crownRadius*sin(slot*2.4),.18):fernTips[slot-8];
+   const [x,y,z]=roundRoses?crownPoint(crownRadius*cos(slot*2.4),crownRadius*sin(slot*2.4),crownHeight(1)-.24):fernTips[slot-8];
    const b=mix(tie,[x,y,z],.55),top=[x,y,z];stem(b,top,.012);stem(tie,b,.018);
    for(let j=1;j<=9;j++)for(const sign of [-1,1]){
     const v=j/11,anchor=mix(b,top,v),l=.26*sin(PI*v)+.06;
@@ -232,48 +235,21 @@ export function bouquet(s){
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
  const papers=[[0x32343e,0x59606a,0xb0a296],[0x827788,0xb9aebc,0xcac1b6],[0xb29877,0xceb798,0xe0d1b6],[0x414634,0xc7bdab,0x575e44]][s.paper];
  // Each sheet opens from the binding, with creases fanning out from the waist.
- const standRadius=crownRadius*.48;
+ const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
  let tagSurface;
  if(roundRoses){
-  // The lining is the reverse of a turned corner on the same sheet.
-  const panels=[12,14,10][s.fold];
-  // The unbroken lower sleeve closes the seams beneath the turned sheets.
-  sheet(96,8,(u,v)=>{
-   const a=TAU*u,r=crownRadius+.78;
-   const bottom=[standRadius*.98*cos(a),tie[1],tie[2]-standRadius*.98*sin(a)];
-   const bend=crownPoint(r*cos(a),r*sin(a),-.43*crownRadius-.3);
-   const shoulder=crownPoint(r*cos(a),r*sin(a),crownRadius*(-.12+.14*sin(a)));
-   return v<.75?mix(bottom,bend,v/.75):mix(bend,shoulder,(v-.75)*4);
-  },()=>mul(rgb(papers[0]),.78));
+  // Low overlapping paper sheets follow the level underside of the flower dome.
+  const panels=[9,11,8][s.fold];
   for(let k=0;k<panels;k++){
-   const angle=TAU*k/panels, tilt=.045*sin(k*2.4+.5);
-   const tint=rgb(papers[k%4===1?1:0]);
    const surface=(u,v)=>{
-    const t=2*u-1, a=angle+t*PI/panels*1.38;
-    const corner=Math.abs(t),crease=sin(PI*u);
-    const lipRadius=crownRadius+.93+.06*corner;
-    const lip=crownPoint(lipRadius*cos(a),lipRadius*sin(a),crownRadius*(-.09+.045*t+tilt+.14*sin(a)));
-    // On the tilted flower face, positive sin(a) points toward the back (-z).
-    const base=[standRadius*cos(a),tie[1],tie[2]-standRadius*sin(a)];
-    const shoulder=crownPoint(lipRadius*cos(a),lipRadius*sin(a),-.43*crownRadius-.24);
-    if(v<=.50)return mix(base,shoulder,v*2);
-    if(v<=.75)return mix(shoulder,lip,(v-.50)*4);
-    const f=(v-.75)*4;
-    const flare=crownRadius*(.10+.12*corner+.035*cos(2*k));
-    const rim=crownPoint((lipRadius+flare*f)*cos(a),(lipRadius+flare*f)*sin(a),
-     crownRadius*(-.09+.045*t+tilt+.14*sin(a)+(.09+.09*t)*sin(PI*f)-(.10+.07*crease)*f));
-    return rim;
+    const t=2*u-1,a=TAU*k/panels+t*PI/panels*1.24;
+    const edge=crownRadius+.27+.09*cos(PI*t);
+    const r=standRadius+(edge-standRadius)*sin(v*PI*.47);
+    const top=1+crownHeight(1)-.26+.11*cos(PI*t+.65*k);
+    return [r*cos(a),tie[1]+(top-tie[1])*v,-r*sin(a)];
    };
-   sheet(12,8,surface,(u,v)=>mul(tint,.81+.15*Math.abs(2*u-1)+.08*v));
-   if(k%3!==1){
-    const reverse=rgb(papers[2]);
-    sheet(8,4,(u,v)=>{
-     const edge=.55+.45*u, at=surface(edge,1);
-     const flap=crownPoint(.048*crownRadius*u*cos(angle),.048*crownRadius*u*sin(angle),-.15*crownRadius*u);
-     return add(at,mul(sub(flap,crownPoint(0,0,0)),v));
-    },(u,v)=>mul(reverse,.74+.16*u+.08*v));
-   }
+   sheet(16,10,surface,(u,v)=>mul(rgb(papers[k%4===2?1:0]),.83+.10*u+.05*v));
    if(k===Math.floor(panels*.38))tagSurface=surface;
   }
  }else wings.forEach(([center,span,height],k)=>{
@@ -297,9 +273,9 @@ export function bouquet(s){
  const handleStart=points.length;
  const silkColor=[0x879fb8,0xab849c,0x385650,0xe6ded0][s.ribbon],silk=rgb(silkColor);
  if(roundRoses){
-  const height=crownRadius*.48+.18;
+  const height=crownRadius*.23+.16;
   const foot=(u,v)=>{
-   const a=u*TAU,r=standRadius*(1+(.19+.035*cos(13*a))*v);
+   const a=u*TAU,r=standRadius*(1+(.08+.024*cos(13*a))*v);
    return [r*cos(a),tie[1]-height*v,tie[2]-r*sin(a)];
   };
   sheet(64,6,foot,(u,v)=>mul(rgb(papers[0]),.85+.08*cos(13*TAU*u)+.06*v));
@@ -355,5 +331,5 @@ export function bouquet(s){
    points[i+2]*=fit;
   }
  }
- return {points,colors,indices,cardStart};
+ return {points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
 }
