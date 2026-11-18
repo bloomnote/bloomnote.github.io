@@ -316,11 +316,6 @@ function giftURL(){
  url.hash=packGift([flower,stems,moves,note]);
  return url.href;
 }
-$('ai-receipt').onclick=$('copy-gift').onclick=async()=>{
- const url=giftURL();
- try{await navigator.clipboard.writeText(url);status('已复制收花链接');}
- catch{$('url').value=url;$('url').hidden=false;$('url').select();status('长按复制收花链接');}
-};
 $('share').onclick=async()=>{
  const url=new URL(giftURL());
  try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
