@@ -68,3 +68,8 @@ input{width:100%;padding:6px}[hidden]{display:none!important}
 #quantities{margin:4px 0 18px}
 #quantities summary{cursor:pointer;color:var(--muted);padding:8px 0;width:fit-content}
 #counters{margin-top:5px}
+
+#move{display:block;margin:.35rem auto;padding:.35rem .9rem;color:inherit;background:transparent;border:1px solid currentColor;cursor:pointer}
+#move[hidden]{display:none}
+.glass.editing #photo{cursor:crosshair}
+.stem-target{position:absolute;pointer-events:none;transform:translate(-50%,-50%);border:2px solid white;box-shadow:0 0 0 1px #29483b;border-radius:50%;width:22px;height:22px}

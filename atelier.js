@@ -1,4 +1,4 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=overhead1';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=stemmove2';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
@@ -31,6 +31,16 @@ function decode(hash){
   if(!stems.some(([kind])=>kind<3))return null;
   state.stems=stems;
  }
+ const moves=new URLSearchParams(location.hash.slice(1)).get('move');
+ if(moves && moves.length<5000){
+  state.moves={};
+  for(const entry of moves.split('~')){
+   const [key,...parts]=entry.split(':');
+   if(!stemsFor(state).some(([k,i])=>key===k+'-'+i)||parts.length!==3)continue;
+   const delta=parts.map(Number);
+   if(delta.every(v=>Number.isFinite(v)&&Math.abs(v)<=2))state.moves[key]=delta;
+  }
+ }
  return state;
 }
 const recipes=[
@@ -46,9 +56,9 @@ const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
 const wall=document.createElement('canvas');
 wall.className='lit-wall';wall.setAttribute('aria-hidden','true');canvas.before(wall);
 function draw(){view.render(yaw,pitch);}
-let cardStart,frontPitch;
+let cardStart,frontPitch,geometry,editing=false;
 function update(){
- const model=bouquet(state);cardStart=model.cardStart;
+ const model=geometry=bouquet(state);cardStart=model.cardStart;
  if(frontPitch!==model.frontPitch){frontPitch=model.frontPitch;pitch=frontPitch;}
  view.setMesh(prepare(model,state.direction,state.lamp));draw();
 }
@@ -73,13 +83,40 @@ function separation(){
 }
 const photo=$('photo');
 photo.src=snapshot().toDataURL('image/png');
+const marker=document.createElement('span');
+marker.className='stem-target';marker.hidden=true;photo.after(marker);
+function editMode(on){
+ editing=on;marker.hidden=true;photo.parentElement.classList.toggle('editing',on);
+ $('move').textContent=on?'完成移动':'移动花枝';
+ $('move').setAttribute('aria-pressed',String(on));
+ document.querySelector('.viewbar span').textContent=on?'按住花头或枝尖拖动':'拖动旋转 · 长按存图';
+}
+$('move').onclick=()=>editMode(!editing);
+function unitScale(rect){return zoom*Math.min(rect.width/3.98,rect.height/5.13)*geometry.fit;}
+function pickStem(e){
+ const rect=photo.getBoundingClientRect(),scale=unitScale(rect);
+ let best=null,bestDistance=Infinity;
+ for(const a of geometry.anchors){
+  const [x,y,z]=a.p,depth=x*Math.sin(yaw)+z*Math.cos(yaw);
+  const sx=rect.width/2+(x*Math.cos(yaw)-z*Math.sin(yaw))*scale;
+  const sy=rect.height/2-((y-geometry.middle)*Math.cos(pitch)-depth*Math.sin(pitch))*scale;
+  const dist=Math.hypot(e.clientX-rect.left-sx,e.clientY-rect.top-sy);
+  if(dist<=Math.max(18,scale*a.radius)&&dist<bestDistance){bestDistance=dist;best=a.key;}
+ }
+ return best;
+}
+function showTarget(e){
+ const rect=photo.getBoundingClientRect();
+ marker.hidden=false;marker.style.left=(e.clientX-rect.left)+'px';marker.style.top=(e.clientY-rect.top)+'px';
+}
 photo.onpointerdown=e=>{
  if(e.button!==0||pointers.size>=2)return;
  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});photo.setPointerCapture(e.pointerId);
  if(pointers.size===2){
-  pinch={distance:Math.max(1,separation()),zoom};if(drag)drag.moved=true;return;
+  marker.hidden=true;if(drag)delete drag.stem;pinch={distance:Math.max(1,separation()),zoom};if(drag)drag.moved=true;return;
  }
  drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,started:e.timeStamp};
+ if(editing){drag.stem=pickStem(e);if(drag.stem)showTarget(e);return;}
  // Keep the native image menu attached to the same image that received the touch.
  photo.src=snapshot().toDataURL('image/png');
 };
@@ -90,17 +127,30 @@ photo.onpointermove=e=>{
  if(!drag||drag.id!==e.pointerId)return;
  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
  if(!drag.moved&&Math.hypot(dx,dy)<6)return;
+ if(editing){drag.moved=true;if(drag.stem)showTarget(e);return;}
  drag.moved=true;yaw-=dx*.012;pitch=(pitch+dy*.009)%(2*Math.PI);
  drag.x=e.clientX;drag.y=e.clientY;draw();
 };
 function endDrag(e){
  if(!pointers.delete(e.pointerId))return;
- pinch=null;drag=null;hold=performance.now()+2500;
+ marker.hidden=true;pinch=null;drag=null;hold=performance.now()+2500;
  if(pointers.size){const [id,pt]=pointers.entries().next().value;drag={id,...pt,moved:true,started:e.timeStamp};}
 };
 photo.onlostpointercapture=photo.onpointercancel=endDrag;
 photo.onpointerup=e=>{
  if(drag?.id!==e.pointerId){endDrag(e);return;}
+ if(editing){
+  if(drag.stem&&drag.moved&&!pinch){
+   const u=unitScale(photo.getBoundingClientRect()),dx=(e.clientX-drag.x)/u,dy=(drag.y-e.clientY)/u;
+   const cs=Math.cos(yaw),sn=Math.sin(yaw),sp=Math.sin(pitch);
+   const delta=[dx*cs-dy*sp*sn,dy*Math.cos(pitch),-dx*sn-dy*sp*cs];
+   state.moves??={};
+   const previous=state.moves[drag.stem]||[0,0,0];
+   state.moves[drag.stem]=previous.map((v,i)=>Math.max(-2,Math.min(2,Math.round((v+delta[i])*100)/100)));
+   update();
+  }
+  endDrag(e);return;
+ }
  if(drag.moved&&!pinch){
   const pole=Math.PI/2+Math.round((pitch-Math.PI/2)/Math.PI)*Math.PI;
   if(Math.abs(pitch-pole)<.07){pitch=pole;draw();}
@@ -113,7 +163,7 @@ photo.onpointerup=e=>{
  if(view.hitsCard(x,y,yaw,pitch,cardStart))openNote();
 };
 canvas.tabIndex=0;canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();yaw+=e.key==='ArrowLeft'?-.15:.15;hold=performance.now()+2500;draw();};
-function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotating&&!drag&&t>hold&&!document.hidden){yaw+=Math.min(dt,100)*.00013;draw();}}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotating&&!editing&&!drag&&t>hold&&!document.hidden){yaw+=Math.min(dt,100)*.00013;draw();}}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带',['ribbon']],['小卡',['card']],['背景与光',['background','direction','lamp']]];
 const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
 const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb'],sprigs:['#9abdd4','#839582'],paper:['#41414a','#9a8da0','#c7ae8c','#414634'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc']};
@@ -143,7 +193,7 @@ function quantityControl(kind,name){
   const next=stems.slice();
   if(value<count){
    let remove=count-value;
-   for(let j=next.length-1;j>=0&&remove;j--)if(next[j][0]===kind){next.splice(j,1);remove--;}
+   for(let j=next.length-1;j>=0&&remove;j--)if(next[j][0]===kind){delete state.moves?.[kind+'-'+next[j][1]];next.splice(j,1);remove--;}
   }else{
    const occupied=new Set(next.filter(([k])=>(k<3)===(kind<3)).map(([,i])=>i));
    let slot=0;
@@ -172,11 +222,13 @@ function refreshCounts(){
  }
 }
 function panel(){
+ if(tab!==0)editMode(false);
+ $('move').hidden=tab!==0||!!gift;
  $('note-field').hidden=tab!==3||!state.card;
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{$('quantities').open=false;delete state.stems;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.onclick=()=>{$('quantities').open=false;delete state.stems;delete state.moves;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
@@ -193,7 +245,7 @@ function panel(){
      input.value=removing?0:Math.min(kind===0?2:kind<3?5:4,Number(input.max));
      input.dispatchEvent(new Event('change'));return;
     }
-    if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
+    if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}delete state.moves;state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
     else state[key]=i;
     status('');if(key!=='background')update();
     if(['background','direction','lamp'].includes(key))refreshBackdrop();panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
@@ -206,6 +258,7 @@ function panel(){
 }
 function status(msg){document.querySelector('output').textContent=msg;}
 function finish(done){
+ editMode(false);$('move').hidden=done||tab!==0;
  document.querySelector('main').classList.toggle('present',done);
  $('read-note').hidden=!done||!state.card||!$('note').value.trim();
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
@@ -217,6 +270,7 @@ panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()
 $('share').onclick=async()=>{
  const url=new URL(location.href);url.hash='flower='+keys.map(k=>[].concat(state[k]).join('')).join('-');
  if(state.stems)url.hash+='&stems='+state.stems.map(([kind,slot])=>kind+slot.toString(36)).join('.');
+ if(state.moves&&Object.keys(state.moves).length)url.hash+='&move='+Object.entries(state.moves).map(([key,v])=>[key,...v].join(':')).join('~');
  if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
  try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
  catch(e){if(e.name==='AbortError')return;$('url').value=url.href;$('url').hidden=false;$('url').select();status('复制这条链接即可分享花束');}

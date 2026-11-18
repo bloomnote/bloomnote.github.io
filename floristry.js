@@ -32,7 +32,24 @@ export function bouquet(s){
  const roundRoses=flowers.length>=24&&flowers.every(([kind])=>kind===1);
  const dense=stems.length>27;
 
- const points=[],colors=[],indices=[];
+ const points=[],colors=[],indices=[],anchors=[];
+ const original=new Set(stemsFor({...s,stems:null}).map(([k,i])=>k+'-'+i));
+ function place(kind,slot,base,radius){
+  const key=kind+'-'+slot;
+  const clearance=p=>anchors.reduce((gap,a)=>Math.min(gap,Math.hypot(...sub(a.base,p))/(a.radius+radius)),Infinity);
+  let best=base;
+  if(!roundRoses&&!original.has(key)&&clearance(base)<1){
+   for(let n=1;n<=96;n++){
+    const angle=n*2.39996,spread=.15*Math.sqrt(n);
+    const trial=add(base,[spread*cos(angle),.45*spread*sin(angle*1.7),spread*sin(angle)]);
+    if(clearance(trial)>clearance(best))best=trial;
+    if(clearance(best)>=1)break;
+   }
+  }
+  const p=add(best,s.moves?.[key]||[0,0,0]);
+  anchors.push({key,p,base:best,radius});
+  return p;
+ }
  function sheet(m,n,point,color){
   let start=points.length/3;
   for(let j=0;j<=n;j++)for(let i=0;i<=m;i++){
@@ -142,7 +159,8 @@ export function bouquet(s){
   return [radius*cos(angle),1.18-.81*radius*sin(angle),.52*radius*sin(angle)-.09*radius,kind===0?.59:.64,kind,i];
  });
  layout.forEach(([x,y,z,r,kind,i],index)=>{
-  const p=[x,y,z];
+  const p=place(kind,i,[x,y,z],r*(kind===2?.42:.76));
+  [x,y,z]=p;layout[index].splice(0,3,...p);
   const facing=roundRoses?crownNormal[index]:i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
   if(kind===2){
    let previous=tie;
@@ -162,7 +180,7 @@ export function bouquet(s){
   sheet(4,6,(u,v)=>add(mix(a,b,v),add(mul(side,(2*u-1)*w*sin(PI*v)),[0,0,.07*sin(PI*v)*(1-Math.abs(2*u-1))])),(u,v)=>mix(rgb(shade),rgb(0xa5b49a),.13*v+.13*u));
  }
  {
-  for(const [x,y,z] of layout.filter(h=>h[4]===1)){
+  for(const [x,y,z] of layout.filter(h=>h[4]===1&&!roundRoses)){
    const base=[x*.72,y-.42,z-.06];
    for(const sign of [-1,1])leaf(base,add(base,[sign*.36,.23,.08]),.105,0x475943);
   }
@@ -182,8 +200,9 @@ export function bouquet(s){
   if(kind===4&&k>=8&&k<12)continue;
   const a=k*2.39996+.45,x=cos(a),z=sin(a);
   const radius=k<8?1:1+.16*Math.sqrt(k-7);
-  const end=roundRoses?crownPoint(x*crownRadius*.92,z*crownRadius*.92,crownHeight(.85)-.13):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
+  const baseEnd=roundRoses?crownPoint(x*crownRadius*.92,z*crownRadius*.92,crownHeight(.85)-.13):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
 
+  const end=place(kind,k,baseEnd,.23);
   const elbow=mix(tie,end,.64);elbow[0]-=.08;stem(tie,elbow,.021);stem(elbow,end,.014);
   for(let j=0;j<5;j++){
    const anchor=mix(elbow,end,.15+j*.19),sign=j%2?1:-1;
@@ -223,7 +242,8 @@ export function bouquet(s){
   const fernTips=[[-1.04,1.29,.38],[.96,.81,.41],[-.85,.34,.83],[.67,1.50,-.34]];
   for(const [kind,slot] of fillers){
    if(kind!==4||slot<8||slot>=12)continue;
-   const [x,y,z]=roundRoses?crownPoint(crownRadius*cos(slot*2.4),crownRadius*sin(slot*2.4),crownHeight(1)-.24):fernTips[slot-8];
+   const rawTip=roundRoses?crownPoint(crownRadius*cos(slot*2.4),crownRadius*sin(slot*2.4),crownHeight(1)-.24):fernTips[slot-8];
+   const [x,y,z]=place(kind,slot,rawTip,.22);
    const b=mix(tie,[x,y,z],.55),top=[x,y,z];stem(b,top,.012);stem(tie,b,.018);
    for(let j=1;j<=9;j++)for(const sign of [-1,1]){
     const v=j/11,anchor=mix(b,top,v),l=.26*sin(PI*v)+.06;
@@ -326,18 +346,19 @@ export function bouquet(s){
   const tag=(u,v)=>{const p=tagSurface(.70+.098*u,.84+.169*v);return [p[0]-.023,p[1],p[2]+.032];};
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }
+ let fit=1,middle=.04;
  if(s.stems){
   let radius=0;
   for(let i=0;i<points.length;i+=3)radius=Math.max(radius,Math.hypot(points[i],points[i+2]));
   let top=-Infinity,bottom=Infinity;
   for(let i=1;i<points.length;i+=3){top=Math.max(top,points[i]);bottom=Math.min(bottom,points[i]);}
-  const fit=Math.min(1,1.68/radius,4.48/(top-bottom));
-  const middle=(top+bottom)/2;
+  fit=Math.min(1,1.68/radius,4.48/(top-bottom));
+  middle=(top+bottom)/2;
   for(let i=0;i<points.length;i+=3){
    points[i]*=fit;
    points[i+1]=(points[i+1]-middle)*fit+.04;
    points[i+2]*=fit;
   }
  }
- return {points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
+ return {anchors,fit,middle,points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
 }
