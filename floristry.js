@@ -8,27 +8,34 @@ const unit=a=>mul(a,1/(Math.hypot(...a)||1));
 const mix=(a,b,t)=>add(mul(a,1-t),mul(b,t));
 const rgb=h=>[16,8,0].map(k=>((h>>k)&255)/255);
 export const options={
- direction:["左上","正上","右上","左侧","右侧"],lamp:["自然白","暖琥珀","冷月蓝","柔粉"],
- background:["暖黄","墨黑","雾灰"],
- blooms:['白百合','烟粉玫瑰','紫郁金香'], sprigs:['雾蓝星花','银绿叶枝'],
- fold:['斜襟高背','双翼','环抱'], paper:['炭墨','灰紫','亚麻','苔绿棉纸'], ribbon:['雾蓝','藕紫','墨绿','象牙白'], card:['无卡片','奶油白','灰粉','雾蓝']
+ direction:["左上","正上","右上","左侧","右侧","右前"],lamp:["自然白","暖琥珀","冷月蓝","柔粉","烛金"],
+ background:["暖黄","墨黑","雾灰","雾蓝","暖白"],
+ blooms:['白百合','烟粉玫瑰','紫郁金香','向日葵','浅蓝绣球'], sprigs:['雾蓝星花','银绿叶枝','红果枝','圆叶尤加利'],
+ fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边'], paper:['炭墨','灰紫','亚麻','苔绿棉纸','奶白','海盐蓝'], ribbon:['雾蓝','藕紫','墨绿','象牙白','栗红','香槟金'], card:['无卡片','奶油白','灰粉','雾蓝','鼠尾草绿','淡杏']
 };
+// Stem ids 0–4 are used by previously shared gifts.
+export const bloomIds=[0,1,2,5,6],sprigIds=[3,4,7,8];
+export const isBloom=id=>bloomIds.includes(id);
+export const stemNames=Object.fromEntries([...bloomIds.map((id,i)=>[id,options.blooms[i]]),...sprigIds.map((id,i)=>[id,options.sprigs[i]])]);
 export const initial={blooms:[0],sprigs:[0,1],fold:0,paper:3,ribbon:3,card:0,background:0,direction:0,lamp:0};
 // Slot numbers stay with their stems when a different stem is removed.
 export function stemsFor(s){
  if(s.stems)return s.stems;
  const stems=[];
  const n=s.blooms.length>1?6:s.blooms[0]===0?2:5;
- for(let i=0;i<n;i++)stems.push([s.blooms[i%s.blooms.length],i]);
+ for(let i=0;i<n;i++)stems.push([bloomIds[s.blooms[i%s.blooms.length]],i]);
  for(let i=0;i<8;i++){
   if(i%2===0&&s.sprigs.includes(0))stems.push([3,i]);
   else if(s.sprigs.includes(1))stems.push([4,i]);
  }
  if(s.sprigs.includes(1))for(let i=8;i<12;i++)stems.push([4,i]);
+ for(const idx of s.sprigs.filter(i=>i>=2)){
+  for(let j=0;j<3;j++)stems.push([sprigIds[idx],12+3*(idx-2)+j]);
+ }
  return stems;
 }
 export function bouquet(s,framing){
- const stems=stemsFor(s),flowers=stems.filter(([k])=>k<3),fillers=stems.filter(([k])=>k>=3);
+ const stems=stemsFor(s),flowers=stems.filter(([k])=>isBloom(k)),fillers=stems.filter(([k])=>!isBloom(k));
  const roundRoses=flowers.length>=24&&flowers.every(([kind])=>kind===1);
  const dense=stems.length>27;
 
@@ -70,6 +77,33 @@ export function bouquet(s,framing){
   const z=unit(direction),x=unit(cross([0,1,0],z)),y=cross(z,x);
   const P=(a,b,c)=>add(p,mul(add(add(mul(x,a),mul(y,b)),mul(z,c)),size));
   const lily=kind===0,rose=kind===1,star=kind===3;
+  if(kind===5){
+   const petals=dense?13:22;
+   for(let k=0;k<petals;k++){
+    const a=phase+k*TAU/petals+(k%2)*.055,reach=.78+.12*cos(k*2.4);
+    sheet(4,6,(u,v)=>{
+     const w=(2*u-1)*.14*pow(sin(PI*v),.7),r=.22+reach*v;
+     return P(r*cos(a)-w*sin(a),r*sin(a)+w*cos(a),.06+.18*sin(PI*v)-.12*v*v+.07*(k%2)*v);
+    },(u,v)=>mix(rgb(0xbc701f),rgb(0xffdb68),.25+.72*v));
+   }
+   sheet(18,5,(u,v)=>P(.32*v*cos(TAU*u),.32*v*sin(TAU*u),.09+.13*(1-v*v)),
+    (u,v)=>mix(rgb(0x4f3123),rgb(0x986134),.2+.5*v+.18*cos(TAU*u*13)));
+   return;
+  }
+  if(kind===6){
+   const n=dense?12:19;
+   for(let j=0;j<n;j++){
+    const a=phase+j*2.39996,r=.67*Math.sqrt((j+.4)/n),h=.48*(1-r*r/.50);
+    for(let k=0;k<4;k++){
+     const dir=a+k*PI/2;
+     sheet(3,4,(u,v)=>{
+      const w=(2*u-1)*.135*sin(PI*v*.86),l=.22*v;
+      return P(r*cos(a)+l*cos(dir)-w*sin(dir),r*sin(a)+l*sin(dir)+w*cos(dir),h+.10*v+.05*sin(PI*v));
+     },(u,v)=>mix(rgb(j%3?0x858ebc:0x9185ad),rgb(0xd6e4f6),.19+.72*v));
+    }
+   }
+   return;
+  }
   let count=lily?6:rose?(roundRoses?19:dense?13:21):star?5:6;
   for(let k=0;k<count;k++){
    const layer=rose?1-k/count:1;
@@ -259,6 +293,10 @@ export function bouquet(s,framing){
   for(const [j,[anchor,tip]] of route.branches.entries()){
    if(kind===3){
     stem(anchor,tip,.009);bloom(tip,.12+.025*sin(k+j),[.45*cos(k),.4,.7*sin(k)+.3],3,j);
+   }else if(kind===7){
+    stem(anchor,tip,.008);bead(tip,[.067,.075,.067],j%2?0x9b3544:0xb24a50);
+   }else if(kind===8){
+    leaf(anchor,tip,.115,0x759389);
    }else leaf(anchor,tip,.063+(j%2)*.018,k%2?0x637b6e:0x425e53);
   }
  }
@@ -310,21 +348,21 @@ export function bouquet(s,framing){
  const reach=Math.max(...anchors.slice(0,flowers.length).map((a,i)=>Math.hypot(a.base[0],a.base[2])+.69*layout[i][3]));
  const spreadScale=s.stems?Math.max(.58,reach/1.40,.49+.14*Math.sqrt(fillers.length)):1;
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
- const papers=[[0x32343e,0x59606a,0xb0a296],[0x827788,0xb9aebc,0xcac1b6],[0xb29877,0xceb798,0xe0d1b6],[0x414634,0xc7bdab,0x575e44]][s.paper];
+ const papers=[[0x32343e,0x59606a,0xb0a296],[0x827788,0xb9aebc,0xcac1b6],[0xb29877,0xceb798,0xe0d1b6],[0x414634,0xc7bdab,0x575e44],[0xdbd6ca,0xf4ede0,0xe5dace],[0x8daab3,0xc4d5d7,0xa7bfc6]][s.paper];
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
  let tagSurface;
  if(roundRoses){
   // Low overlapping paper sheets follow the level underside of the flower dome.
-  const panels=[9,11,8][s.fold];
+  const panels=[9,11,8,15,12][s.fold];
   for(let k=0;k<panels;k++){
    const surface=(u,v)=>{
     const t=2*u-1,a=TAU*k/panels+t*PI/panels*1.24;
     const fold=.5+.5*cos(PI*(t+.16*sin(k)));
     const edge=crownRadius*(1.08+.105*fold)+.32;
     const r=standRadius+(edge-standRadius)*sin(v*PI*.47);
-    const top=1+crownHeight(1)-.23+.26*cos(PI*t+.65*k);
+    const top=(s.fold===4?-.18:0)+1+crownHeight(1)-.23+.26*cos(PI*t+.65*k);
     return [r*cos(a),tie[1]+(top-tie[1])*v,-r*sin(a)];
    };
    sheet(16,10,surface,(u,v)=>mul(rgb(papers[k%4===2?1:0]),.83+.10*u+.05*v));
@@ -339,23 +377,25 @@ export function bouquet(s,framing){
  }else wings.forEach(([center,span,height],k)=>{
   if(s.fold===1)height+=k<2?.37:-.22;
   if(s.fold===2){span*=1.19;height=k===2?.99:k===3?-.22:.88;}
+  if(s.fold===3){span*=1.12;height+=k<2?.23:-.11;}
+  if(s.fold===4){span*=1.20;height=k===3?-.32:.49;}
   const base=rgb(papers[k===2?2:k===1?1:0]);
   const surface=(u,v)=>{
    const a=center+(u-.5)*span*1.72;
-   const pleat=Math.abs(((u*3.7+.16*k)%1)-.5)*2;
+   const pleat=Math.abs(((u*(s.fold===3?9:3.7)+.16*k)%1)-.5)*2;
    const front=Math.max(0,cos(a));
    const clearance=s.fold!==0&&k<3?.78*Math.max(0,(cos(a)+.65)/1.65):0;
-   const edge=height-clearance-.99*front+.39*(u-.5)*(k%2?1:-1)+.12*pleat+(k===3?.78*front:0);
-   const spread=k===3?.77:1.38;
+   const edge=(s.fold===4?.17*cos(TAU*u*3):0)+height-clearance-.99*front+.39*(u-.5)*(k%2?1:-1)+.12*pleat+(k===3?.78*front:0);
+   const spread=k===3?.77:s.fold===3?1.54:1.38;
    const radius=.21*waist+((spread+.12*pleat)*spreadScale-.21*waist)*pow(v,1.05);
    const drop=extent*(.08+1.16*front);
    return [sin(a)*radius,tie[1]-.04+(edge-tie[1]+.04-drop)*v,cos(a)*radius*.84];
   };
   if(k===0)tagSurface=surface;
-  sheet(50,24,surface,(u,v)=>mul(base,.90+.09*Math.abs(((u*3.7+.16*k)%1)-.5)*2+.028*sin(153*u+37*v)*cos(49*v-11*u)));
+  sheet(50,24,surface,(u,v)=>mul(base,.90+.09*Math.abs(((u*(s.fold===3?9:3.7)+.16*k)%1)-.5)*2+.028*sin(153*u+37*v)*cos(49*v-11*u)));
  });
  const handleStart=points.length;
- const silkColor=[0x879fb8,0xab849c,0x385650,0xe6ded0][s.ribbon],silk=rgb(silkColor);
+ const silkColor=[0x879fb8,0xab849c,0x385650,0xe6ded0,0x8c4049,0xcda978][s.ribbon],silk=rgb(silkColor);
  if(roundRoses){
   const height=crownRadius*.23+.16;
   const foot=(u,v)=>{
@@ -398,7 +438,7 @@ export function bouquet(s,framing){
  const cardStart=indices.length;
  if(s.card){
   // Clip the tag to the outer left shoulder, just beneath its paper lip.
-  const tint=rgb([0,0xf2e5cb,0xe6c4c2,0xc3cfdc][s.card]);
+  const tint=rgb([0,0xf2e5cb,0xe6c4c2,0xc3cfdc,0xc3ccbb,0xedd2bb][s.card]);
   const tag=(u,v)=>{const p=tagSurface(.70+.098*u,.84+.169*v);return [p[0]-.023,p[1],p[2]+.032];};
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }

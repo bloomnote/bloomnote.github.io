@@ -1,5 +1,5 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=spray5';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=spray5';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=catalog1';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=catalog1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
@@ -21,14 +21,14 @@ function decode(hash,params){
  if(raw!==null){
   const tokens=raw.split('.');
   if(tokens.length>128)return null;
-  const seen=new Set(),counts=[0,0,0,0,0],stems=[];
+  const seen=new Set(),counts=Array(9).fill(0),stems=[];
   for(const token of tokens){
-   if(!/^[0-4][0-9a-z]{1,2}$/.test(token))return null;
-   const kind=Number(token[0]),slot=parseInt(token.slice(1),36),key=(kind<3?'flower':'sprig')+slot;
+   if(!/^[0-8][0-9a-z]{1,2}$/.test(token))return null;
+   const kind=Number(token[0]),slot=parseInt(token.slice(1),36),key=(isBloom(kind)?'flower':'sprig')+slot;
    if(slot>=128||seen.has(key)||++counts[kind]>99)return null;
    seen.add(key);stems.push([kind,slot]);
   }
-  if(!stems.some(([kind])=>kind<3))return null;
+  if(!stems.some(([kind])=>isBloom(kind)))return null;
   state.stems=stems;
  }
  const moves=params.get('move');
@@ -46,7 +46,10 @@ function decode(hash,params){
 const recipes=[
  {id:'lily',name:'苔绿白百合',state:initial},
  {id:'rose',name:'炭墨烟粉玫瑰',state:{...initial,blooms:[1],sprigs:[0],fold:1,paper:0,ribbon:1}},
- {id:'tulip',name:'亚麻紫郁金香',state:{...initial,blooms:[2],sprigs:[],fold:2,paper:2,ribbon:2}}
+ {id:'tulip',name:'亚麻紫郁金香',state:{...initial,blooms:[2],sprigs:[],fold:2,paper:2,ribbon:2}},
+ {id:'sunflower',name:'暖金向日葵',state:{...initial,blooms:[3],sprigs:[3],fold:3,paper:4,ribbon:4}},
+ {id:'hydrangea',name:'海盐蓝绣球',state:{...initial,blooms:[4],sprigs:[0],fold:4,paper:5,ribbon:3}},
+ {id:'berries',name:'红果与烟粉玫瑰',state:{...initial,blooms:[1],sprigs:[2,3],fold:2,paper:4,ribbon:4}}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 function unpackGift(fragment){
@@ -76,7 +79,7 @@ try{
 }
 const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
 let yaw=0,pitch=.08,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0,hold=performance.now()+2800,tab=0,drag=null;
-const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
+const backdrops=['#f5e9cd','#191a1d','#b8b8b3','#b0c4ce','#eee6d9'];
 const wall=document.createElement('canvas');
 wall.className='lit-wall';wall.setAttribute('aria-hidden','true');canvas.before(wall);
 function draw(){view.render(yaw,pitch);}
@@ -153,7 +156,7 @@ photo.onpointerdown=e=>{
  drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,started:e.timeStamp};
  if(editing){drag.stem=pickStem(e);if(drag.stem){
    drag.origin=state.moves?.[drag.stem]||[0,0,0];showTarget(e);const [kind,slot]=drag.stem.split('-');
-   const name=kind==='stock'?'配花':[...options.blooms,...options.sprigs][Number(kind)];
+   const name=kind==='stock'?'配花':stemNames[kind];
    document.querySelector('.viewbar span').textContent='已选中'+name+' · '+(Number(slot)+1);
   }else{marker.hidden=true;document.querySelector('.viewbar span').textContent='请点露出的花瓣、叶片或茎';}return;}
  // Keep the native image menu attached to the same image that received the touch.
@@ -199,7 +202,7 @@ canvas.tabIndex=0;canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e
 function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotating&&!editing&&!drag&&t>hold&&!document.hidden){yaw+=Math.min(dt,100)*.00013;draw();}}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带',['ribbon']],['小卡',['card']],['背景与光',['background','direction','lamp']]];
 const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
-const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb'],sprigs:['#9abdd4','#839582'],paper:['#41414a','#9a8da0','#c7ae8c','#414634'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc']};
+const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc','#ecd19e'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb','#e5b849','#adbbdc'],sprigs:['#9abdd4','#839582','#ab4550','#86a398'],paper:['#41414a','#9a8da0','#c7ae8c','#414634','#dedace','#92afb7'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0','#8c4049','#cda978'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc','#c3ccbb','#edd2bb']};
 $('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
 $('read-note').onclick=openNote;
 function openNote(){
@@ -217,8 +220,8 @@ function quantityControl(kind,name){
  input.type='number';input.inputMode='numeric';input.dataset.kind=kind;
  function change(value){
  const stems=stemsFor(state),count=stems.filter(([k])=>k===kind).length;
- const flowers=stems.filter(([k])=>k<3).length;
- const minimum=kind<3&&flowers===count?1:0,maximum=Math.min(99,128-stems.length+count);
+ const flowers=stems.filter(([k])=>isBloom(k)).length;
+ const minimum=isBloom(kind)&&flowers===count?1:0,maximum=Math.min(99,128-stems.length+count);
   if(!Number.isInteger(value)||value<minimum||value>maximum){
    input.value=count;status('这项可选 '+minimum+' 至 '+maximum+' 枝');return;
   }
@@ -228,7 +231,7 @@ function quantityControl(kind,name){
    let remove=count-value;
    for(let j=next.length-1;j>=0&&remove;j--)if(next[j][0]===kind){delete state.moves?.[kind+'-'+next[j][1]];next.splice(j,1);remove--;}
   }else{
-   const occupied=new Set(next.filter(([k])=>(k<3)===(kind<3)).map(([,i])=>i));
+   const occupied=new Set(next.filter(([k])=>(isBloom(k))===(isBloom(kind))).map(([,i])=>i));
    let slot=0;
    for(let j=count;j<value;j++){
     while(occupied.has(slot))slot++;
@@ -245,11 +248,11 @@ function quantityControl(kind,name){
  group.append(label,minus,input,plus);return group;
 }
 function refreshCounts(){
- const stems=stemsFor(state),flowers=stems.filter(([k])=>k<3).length;
+ const stems=stemsFor(state),flowers=stems.filter(([k])=>isBloom(k)).length;
  for(const chip of $('picker').querySelectorAll('[data-kind]'))chip.setAttribute('aria-pressed',String(stems.some(([k])=>k===Number(chip.dataset.kind))));
  for(const input of $('counters').querySelectorAll('input[data-kind]')){
   const kind=Number(input.dataset.kind),n=stems.filter(([k])=>k===kind).length;
-  input.value=n;input.min=kind<3&&n===flowers?1:0;input.max=Math.min(99,128-stems.length+n);
+  input.value=n;input.min=isBloom(kind)&&n===flowers?1:0;input.max=Math.min(99,128-stems.length+n);
   input.previousElementSibling.disabled=n===Number(input.min);
   input.nextElementSibling.disabled=n===Number(input.max);
  }
@@ -268,14 +271,14 @@ function panel(){
  $('picker').replaceChildren(...steps[tab][1].map(key=>{
   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
   options[key].forEach((name,i)=>{
-   const b=document.createElement('button'),list=Array.isArray(state[key]),kind=key==='sprigs'?i+3:i,active=list?stemsFor(state).some(([k])=>k===kind):state[key]===i;
+   const b=document.createElement('button'),list=Array.isArray(state[key]),kind=key==='sprigs'?sprigIds[i]:bloomIds[i],active=list?stemsFor(state).some(([k])=>k===kind):state[key]===i;
    if(list)b.dataset.kind=kind;
    if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
    b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
     if(list&&state.stems){
      const input=$('count-'+kind),removing=b.getAttribute('aria-pressed')==='true';
      if(removing&&Number(input.min)>0){status('至少留一种主花');return;}
-     input.value=removing?0:Math.min(kind===0?2:kind<3?5:4,Number(input.max));
+     input.value=removing?0:Math.min(kind===0?2:isBloom(kind)?5:4,Number(input.max));
      input.dispatchEvent(new Event('change'));return;
     }
     if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}delete state.moves;state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
@@ -286,7 +289,7 @@ function panel(){
   });field.append(legend,row);return field;
  }));
  $('quantities').hidden=tab!==0;
- if(tab===0)$('counters').replaceChildren(...[...options.blooms,...options.sprigs].map((name,k)=>quantityControl(k,name)));
+ if(tab===0)$('counters').replaceChildren(...[...bloomIds,...sprigIds].map(k=>quantityControl(k,stemNames[k])));
  refreshCounts();
 }
 function status(msg){document.querySelector('output').textContent=msg;}
@@ -297,7 +300,7 @@ function finish(done){
  $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
- $('receipt').textContent=[...options.blooms,...options.sprigs].map((name,i)=>{const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(i<3?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(isBloom(i)?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
  status('');$('url').hidden=true;if(done)front();
 }
 panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
