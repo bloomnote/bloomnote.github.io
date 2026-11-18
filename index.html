@@ -4,7 +4,7 @@
 <div class="heading"><div><p id="over">花艺工作台</p><h1 id="title">包一束花</h1></div></div>
 <div class="work"><section class="exhibit" aria-label="立体花束预览"><div class="glass"><canvas aria-label="拖动旋转立体花束" id="flower"></canvas><img id="photo" alt="当前角度的花束" draggable="false"></div><div class="viewbar"><button id="front">回到正面</button><span>拖动旋转 · 长按存图</span><button id="turn">自动旋转</button></div><button id="move" hidden>移动花枝</button></section>
 <section class="desk"><div id="editor"><fieldset><legend>试一束搭配</legend><div class="choices" id="recipes"></div></fieldset><nav aria-label="搭配步骤"></nav><div id="picker"></div><details id="quantities"><summary>微调枝数</summary><div class="choices" id="counters"></div></details><label id="note-field" hidden>贺卡正文<textarea id="note" rows="5" maxlength="400" placeholder="写下想随花送出的话，也可以署名"></textarea></label><button class="primary" id="finish">完成搭配</button></div>
-<div id="finished" hidden><p id="receipt"></p><div class="actions"><button id="read-note" hidden>读贺卡</button><button class="primary" id="save">保存图片</button><button id="share">分享花束</button></div><button id="back">继续搭配</button></div>
-<output role="status"></output><input id="url" aria-label="花束分享链接" readonly hidden></section></div></main>
+<div id="finished" hidden><p id="receipt"></p><div class="actions"><button id="read-note" hidden>读贺卡</button><button class="primary" id="save">保存图片</button><button id="share">分享花束</button></div><button id="ai-receipt">复制给 AI 的花束单</button><button id="reply" hidden>用这束花回赠</button><button id="back">继续搭配</button></div>
+<output role="status"></output><textarea id="url" aria-label="复制花束链接或花束单" readonly hidden rows="4"></textarea></section></div></main>
 <dialog id="letter" aria-label="随花贺卡"><p id="letter-text"></p><form method="dialog"><button>收起贺卡</button></form></dialog>
-<script type="module" src="./atelier.js?v=spray5"></script></html>
+<script type="module" src="./atelier.js?v=gift1"></script></html>

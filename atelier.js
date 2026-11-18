@@ -50,7 +50,8 @@ const recipes=[
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 const giftParams=new URLSearchParams(location.hash.slice(1));
-const gift=decode(location.hash.split('&')[0]),state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
+let gift=decode(location.hash.split('&')[0]);
+const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
 let yaw=0,pitch=.08,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0,hold=performance.now()+2800,tab=0,drag=null;
 const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
 const wall=document.createElement('canvas');
@@ -270,17 +271,43 @@ function finish(done){
  editMode(false);$('move').hidden=done||tab!==0;
  document.querySelector('main').classList.toggle('present',done);
  $('read-note').hidden=!done||!state.card||!$('note').value.trim();
+ $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
  $('receipt').textContent=[...options.blooms,...options.sprigs].map((name,i)=>{const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(i<3?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
  status('');$('url').hidden=true;if(done)front();
 }
 panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
-$('share').onclick=async()=>{
+$('reply').onclick=()=>{
+ gift=null;
+ history.replaceState(null,'',location.pathname+location.search);
+ $('note').value='';
+ panel();finish(false);front();
+};
+function giftURL(){
  const url=new URL(location.href);url.hash='flower='+keys.map(k=>[].concat(state[k]).join('')).join('-');
  if(state.stems)url.hash+='&stems='+state.stems.map(([kind,slot])=>kind+slot.toString(36)).join('.');
  if(state.moves&&Object.keys(state.moves).length)url.hash+='&move='+Object.entries(state.moves).map(([key,v])=>[key,...v].join(':')).join('~');
  if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
+ return url.href;
+}
+$('ai-receipt').onclick=async()=>{
+ const offsetText=Object.entries(state.moves||{}).map(([key,delta])=>{
+  const [kind,slot]=key.split('-');
+  const name=kind==='stock'?'百合附属花枝':[...options.blooms,...options.sprigs][Number(kind)];
+  const directions=[['左','右'],['下','上'],['后','前']];
+  return name+'（槽号 '+slot+'）'+delta.map((v,i)=>v?'向'+directions[i][Number(v>0)]+Math.abs(v):'').filter(Boolean).join('、');
+ }).join('；');
+ const text=['花间手帖 · 送给你的花束',$('receipt').textContent,
+  '包装：'+options.fold[state.fold]+'。背景：'+options.background[state.background]+'，'+options.direction[state.direction]+options.lamp[state.lamp]+'光。',
+  offsetText?'手动摆放：'+offsetText:'',
+  state.card?'贺卡（'+options.card[state.card]+'）：'+$('note').value:'无贺卡',
+  giftURL()].filter(Boolean).join('\n');
+ try{await navigator.clipboard.writeText(text);status('花束单已复制，可以贴给对方了');}
+ catch{$('url').value=text;$('url').hidden=false;$('url').select();status('长按复制这份花束单');}
+};
+$('share').onclick=async()=>{
+ const url=new URL(giftURL());
  try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
  catch(e){if(e.name==='AbortError')return;$('url').value=url.href;$('url').hidden=false;$('url').select();status('复制这条链接即可分享花束');}
 };
