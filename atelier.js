@@ -1,0 +1,151 @@
+import {bouquet,options,initial} from './floristry.js';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js';
+const $=id=>document.getElementById(id), keys=Object.keys(initial);
+function decode(hash){
+ if(!hash.startsWith('#flower='))return null;
+ const parts=hash.slice(8).split('-');
+ // Older gifts used the original gray backdrop.
+ if(parts.length===6)parts.push('2');
+ if(parts.length===7)parts.push('0','0');
+ if(parts.length!==keys.length)return null;
+ const state={};
+ for(const [i,key] of keys.entries()){
+  const part=parts[i],multi=Array.isArray(initial[key]);
+  if(!/^\d*$/.test(part)||part.length>(multi?options[key].length:1))return null;
+  if(!part.length&&key!=='sprigs')return null;
+  const values=[...part].map(Number);
+  if(values.some(v=>v>=options[key].length)||new Set(values).size!==values.length)return null;
+  state[key]=multi?values:values[0];
+ }
+ return state;
+}
+const recipes=[
+ {id:'lily',name:'苔绿白百合',state:initial},
+ {id:'rose',name:'炭墨烟粉玫瑰',state:{...initial,blooms:[1],sprigs:[0],fold:1,paper:0,ribbon:1}},
+ {id:'tulip',name:'亚麻紫郁金香',state:{...initial,blooms:[2],sprigs:[],fold:2,paper:2,ribbon:2}}
+];
+const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
+const giftParams=new URLSearchParams(location.hash.slice(1));
+const gift=decode(location.hash.split('&')[0]),state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
+let yaw=0,pitch=.08,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0,hold=performance.now()+2800,tab=0,drag=null;
+const backdrops=['#f5e9cd','#191a1d','#b8b8b3'];
+const wall=document.createElement('canvas');
+wall.className='lit-wall';wall.setAttribute('aria-hidden','true');canvas.before(wall);
+function draw(){view.render(yaw,pitch);}
+let cardStart;
+function update(){
+ const model=bouquet(state);cardStart=model.cardStart;
+ view.setMesh(prepare(model,state.direction,state.lamp));draw();
+}
+function resize(){
+ const dpr=view.accelerated?Math.min(devicePixelRatio,2):Math.min(devicePixelRatio,1.1);
+ canvas.width=Math.max(1,Math.round(canvas.clientWidth*dpr));canvas.height=Math.max(1,Math.round(canvas.clientHeight*dpr));refreshBackdrop();draw();
+}
+update();new ResizeObserver(resize).observe(canvas);resize();
+function rotation(){ $('turn').textContent=rotating?'暂停旋转':'开始旋转';$('turn').setAttribute('aria-pressed',String(rotating));}
+rotation();$('turn').onclick=()=>{rotating=!rotating;rotation();};
+function front(){yaw=0;pitch=.08;hold=performance.now()+2800;draw();} $('front').onclick=front;
+const photo=$('photo');
+photo.src=snapshot().toDataURL('image/png');
+photo.onpointerdown=e=>{
+ if(!e.isPrimary||e.button!==0)return;
+ drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,started:e.timeStamp};
+ // Keep the native image menu attached to the same image that received the touch.
+ photo.src=snapshot().toDataURL('image/png');
+ photo.setPointerCapture(e.pointerId);
+};
+photo.onpointermove=e=>{
+ if(!drag||drag.id!==e.pointerId)return;
+ const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+ if(!drag.moved&&Math.hypot(dx,dy)<6)return;
+ drag.moved=true;yaw-=dx*.012;pitch=Math.max(-.6,Math.min(.65,pitch+dy*.009));
+ drag.x=e.clientX;drag.y=e.clientY;draw();
+};
+function endDrag(e){
+ if(drag?.id===e.pointerId){drag=null;hold=performance.now()+2500;}
+};
+photo.onlostpointercapture=photo.onpointercancel=endDrag;
+photo.onpointerup=e=>{
+ if(drag?.id!==e.pointerId)return;
+ const tapped=!drag.moved&&e.timeStamp-drag.started<450&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6;
+ endDrag(e);
+ if(!tapped||!state.card||!$('note').value.trim())return;
+ const rect=photo.getBoundingClientRect();
+ const x=(e.clientX-rect.left)*canvas.width/rect.width,y=(e.clientY-rect.top)*canvas.height/rect.height;
+ if(view.hitsCard(x,y,yaw,pitch,cardStart))openNote();
+};
+canvas.tabIndex=0;canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();yaw+=e.key==='ArrowLeft'?-.15:.15;hold=performance.now()+2500;draw();};
+function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotating&&!drag&&t>hold&&!document.hidden){yaw+=Math.min(dt,100)*.00013;draw();}}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带',['ribbon']],['小卡',['card']],['背景与光',['background','direction','lamp']]];
+const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
+const palette={background:backdrops,lamp:['#f7f5ed','#f2c493','#bacedf','#ecc5cc'],blooms:['#f3ebd6','#d1a3a5','#b1a0cb'],sprigs:['#9abdd4','#839582'],paper:['#41414a','#9a8da0','#c7ae8c','#414634'],ribbon:['#879fb8','#ab849c','#385650','#e6ded0'],card:[null,'#f2e5cb','#e6c4c2','#c3cfdc']};
+$('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
+$('read-note').onclick=openNote;
+function openNote(){
+ $('letter-text').textContent=$('note').value.trim();
+ $('letter').style.backgroundColor=palette.card[state.card];
+ $('letter').showModal();
+};
+function panel(){
+ $('note-field').hidden=tab!==3||!state.card;
+ $('recipes').replaceChildren(...recipes.map(recipe=>{
+  const button=document.createElement('button');button.textContent=recipe.name;
+  button.setAttribute('aria-pressed',String(Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
+  button.onclick=()=>{Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  return button;
+ }));
+ document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
+ $('picker').replaceChildren(...steps[tab][1].map(key=>{
+  const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
+  options[key].forEach((name,i)=>{
+   const b=document.createElement('button'),list=Array.isArray(state[key]),active=list?state[key].includes(i):state[key]===i;
+   if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
+   b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
+    if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
+    else state[key]=i;
+    status('');if(key!=='background')update();
+    if(['background','direction','lamp'].includes(key))refreshBackdrop();panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
+   };row.append(b);
+  });field.append(legend,row);return field;
+ }));
+}
+function status(msg){document.querySelector('output').textContent=msg;}
+function finish(done){
+ document.querySelector('main').classList.toggle('present',done);
+ $('read-note').hidden=!done||!state.card||!$('note').value.trim();
+ $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
+ $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
+ $('receipt').textContent=state.blooms.map(i=>options.blooms[i]).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ status('');$('url').hidden=true;if(done)front();
+}
+panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
+$('share').onclick=async()=>{
+ const url=new URL(location.href);url.hash='flower='+keys.map(k=>[].concat(state[k]).join('')).join('-');
+ if(state.card&&$('note').value.trim())url.hash+='&'+new URLSearchParams({note:$('note').value.trim()});
+ try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
+ catch(e){if(e.name==='AbortError')return;$('url').value=url.href;$('url').hidden=false;$('url').select();status('复制这条链接即可分享花束');}
+};
+function snapshot(){
+ draw();const out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;const ctx=out.getContext('2d');
+ // Use the same color for the preview and the image so the shutter matches the frame.
+ ctx.drawImage(wall,0,0);ctx.drawImage(canvas,0,0);
+ return out;
+}
+$('save').onclick=()=>{
+ const filename='花间手帖-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';
+ snapshot().toBlob(blob=>{if(!blob){status('图片生成失败，请再试一次');return;}const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);status('已生成当前角度的 PNG 图片');},'image/png');
+};
+function refreshBackdrop(){
+ wall.width=canvas.width;wall.height=canvas.height;
+ const ctx=wall.getContext('2d');
+ const [x,y]=lightPositions[state.direction],tint=lampColors[state.lamp];
+ const base=backdrops[state.background].slice(1).match(/../g).map(hex=>parseInt(hex,16));
+ const cx=.5+.54*x,cy=.55-.54*y;
+ ctx.scale(wall.width,wall.height);
+ const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,1.18);
+ for(const [offset,power] of [[0,1],[.3,.83],[.65,.34],[1,0]]){
+  const rgb=base.map((channel,i)=>Math.round(Math.min(255,channel*.83+power*(39+channel*.07)*tint[i]**2)));
+  glow.addColorStop(offset,'rgb('+rgb.join(',')+')');
+ }
+ ctx.fillStyle=glow;ctx.fillRect(0,0,1,1);
+}

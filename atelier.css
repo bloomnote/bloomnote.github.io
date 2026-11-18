@@ -1,0 +1,59 @@
+@font-face{font-family:BloomnoteHuiwen;src:url('./huiwen.otf') format('opentype');font-display:swap}
+@font-face{font-family:Stationery;src:url('./song.otf') format('opentype');font-display:swap}
+:root{--ink:#263f35;--muted:#606d60;--rule:#b9bcaa;--paper:#f7f4e9;--serif:BloomnoteHuiwen,"汇文明朝体","Huiwen-mincho",Stationery,serif}
+*{box-sizing:border-box}
+body{margin:0;background:#263e35;color:var(--ink);font:16px/1.6 var(--serif);padding:clamp(12px,3vw,40px)}
+main{position:relative;isolation:isolate;max-width:1080px;margin:auto;background:var(--paper);padding:clamp(18px,4vw,54px);box-shadow:3px 5px 0 #a4b3a0,5px 8px 0 #20372e}
+main:before{content:"";position:absolute;inset:8px;border:1px solid #bdc1ad;pointer-events:none;z-index:-1}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.signature{width:clamp(140px,17vw,199px);height:auto;display:block}
+.shop{font-size:15px;letter-spacing:.22em}
+.heading{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:24px 0 20px;padding:0 2% 0 1%}
+.heading p{margin:0 0 4px;font-size:13px;color:var(--muted);letter-spacing:.22em}
+h1{margin:0;font-size:clamp(31px,5vw,57px);line-height:1.25;letter-spacing:.065em;font-weight:400}
+.work{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:clamp(24px,4vw,55px);align-items:start}
+.exhibit{min-width:0;padding:7px 7px 0;background:#fffdf4;box-shadow:0 1px 4px #353c2c25,2px 3px 0 #dddccd}
+.glass{height:clamp(335px,58vh,620px);position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.lit-wall{position:absolute;inset:0;pointer-events:none}#flower{position:relative}
+#photo{position:absolute;inset:0;width:100%;height:100%;opacity:0;touch-action:none;cursor:grab;-webkit-touch-callout:default}#photo:active{cursor:grabbing}
+button,input{font:inherit;color:inherit}
+button{min-height:44px;cursor:pointer;border:0;background:transparent}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #536751;outline-offset:2px}
+.viewbar,.actions,nav,.choices{display:flex;align-items:center}
+.viewbar{justify-content:space-between;gap:3px;font-size:12px}
+.viewbar span{color:var(--muted);text-align:center}.viewbar button{padding:0 4px}
+.desk{position:relative;min-width:0;padding:12px 0 8px 19px;border-left:1px solid var(--rule)}
+fieldset{padding:0;border:0;margin:0 0 18px}
+legend{padding:0;margin:0 0 8px;color:var(--muted);font-size:14px;letter-spacing:.08em}
+.choices{flex-wrap:wrap;gap:5px 8px}
+.choices button{border:1px solid #c8cbba;background:#fffdf644;padding:6px 10px;font-size:14px}
+.choices button[aria-pressed=true]{border-color:#627663;background:#e5e9dd;box-shadow:inset 0 -2px #647963}
+.sample{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;background:var(--swatch);border:1px solid #57594840;border-radius:50%}
+nav{gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--rule);margin-bottom:17px}
+nav button{padding:0 5px;font-size:14px}
+nav [aria-current=true]{box-shadow:inset 0 -2px var(--ink)}
+#finish{background:var(--ink);color:var(--paper);padding:7px 22px}
+.present .desk{align-self:center;padding:20px 18px;background:#f0eee2;border:1px solid #ccd0bd;box-shadow:3px 3px 0 #e4e6d9}
+#receipt{margin:0 0 9px;line-height:1.85}
+.actions{gap:20px}.actions button,#back{text-decoration:underline;text-decoration-color:#9ba993;text-underline-offset:5px;padding:0 3px}
+#back,output{font-size:13px;color:var(--muted)}output{display:block}output:not(:empty){margin-top:6px}
+input{width:100%;padding:6px}[hidden]{display:none!important}
+@media(max-width:700px){
+ body{padding:10px 8px 14px}main{padding:20px 15px 22px}main:before{inset:5px}
+ .signature{width:138px}.shop{font-size:13px}.heading{margin:18px 2px 15px}
+ .work{display:block}.glass{height:clamp(248px,43svh,435px)}.desk{margin:18px 4px 0;padding:2px 0;border:0}
+ .present .desk{margin:14px 3px 2px 14px;padding:12px 15px 6px}.viewbar{font-size:clamp(11px,3vw,13px)}
+ nav{justify-content:space-between;gap:0}nav button{padding:0 3px}
+}
+
+#note-field{display:block;margin:0 0 18px}
+#note{display:block;width:100%;margin-top:6px;padding:10px;font:inherit;color:inherit;background:#fffdf6;border:1px solid var(--rule);resize:vertical}
+#letter{width:min(86vw,26rem);max-height:80svh;overflow:auto;color:var(--ink);border:1px solid #819082;padding:clamp(20px,6vw,40px);box-shadow:4px 5px 0 #223d3252}
+#letter::backdrop{background:#18291fc2}
+#letter-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.95;margin:0}
+#letter form{text-align:right;margin-top:14px}
+#letter form button{font-size:14px;text-decoration:underline;text-underline-offset:5px}
+.actions{flex-wrap:wrap}
+@font-face{font-family:HuiwenLetters;src:url('./huiwen-letters.otf') format('opentype');font-display:swap}
+#note,#letter-text{font-family:BloomnoteHuiwen,HuiwenLetters,var(--serif)}
