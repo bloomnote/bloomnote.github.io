@@ -1,5 +1,5 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=pick3';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=pick3';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=spray4';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=spray4';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
  if(!hash.startsWith('#flower='))return null;

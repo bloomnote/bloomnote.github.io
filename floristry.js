@@ -160,6 +160,7 @@ export function bouquet(s,framing){
   const j=i-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+4)*.55;
   return [radius*cos(angle),1.18-.81*radius*sin(angle),.52*radius*sin(angle)-.09*radius,kind===0?.59:.64,kind,i];
  });
+ const flowerHeads=[];
  layout.forEach(([x,y,z,r,kind,i],index)=>{
   const p=place(kind,i,[x,y,z],r*(kind===2?.42:.76));
   [x,y,z]=p;layout[index].splice(0,3,...p);
@@ -175,7 +176,15 @@ export function bouquet(s,framing){
    const anchor=[x*.29,tie[1],z*.29];
    stem(anchor,p,.042);
   }else stem(tie,p,.025);
+  const petalStart=points.length;
   bloom(p,r,facing,kind,.75+i*1.92,lilyStudy&&i===1?.76:1);
+  const center=add(p,mul(unit(facing),r*(kind===2?.24:roundRoses?-.08:.18)));
+  let radius=0;
+  for(let v=petalStart;v<points.length;v+=3){
+   radius=Math.max(radius,Math.hypot(points[v]-center[0],points[v+1]-center[1],points[v+2]-center[2]));
+  }
+  flowerHeads.push({center,radius});
+
  });
  function leaf(a,b,w,shade){
   const side=unit(cross(sub(b,a),[.16,.2,1]));
@@ -200,6 +209,44 @@ export function bouquet(s,framing){
 
   }
  }
+ // Test the entire spray, including space for each small blossom at its tip.
+ function clearSegment(a,b,padding){
+  const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],length=dx*dx+dy*dy+dz*dz;
+  for(const {center,radius} of flowerHeads){
+   const x=center[0]-a[0],y=center[1]-a[1],z=center[2]-a[2];
+   const t=length?Math.max(0,Math.min(1,(dx*x+dy*y+dz*z)/length)):0;
+   if((x-t*dx)**2+(y-t*dy)**2+(z-t*dz)**2<(radius+padding)**2)return false;
+  }
+  return true;
+ }
+ function routeSpray(end,k,kind){
+  let base=tie;
+  while(!clearSegment(base,base,.028))base=add(base,[0,-.2,0]);
+  const twigs=Array.from({length:5},(_,j)=>[(j%2?1:-1)*(.18+.08*sin(k)),.20+.06*cos(j),.11*cos(k+j)]);
+  const angle=Math.atan2(end[2],end[0]),sweep=[0,.55,-.55,1.2,-1.2,2.2,-2.2,PI];
+  for(let ring=0;ring<65;ring++)for(const turn of ring?sweep:[0]){
+   const step=ring*.15,tip=add(end,[cos(angle+turn)*step,0,sin(angle+turn)*step]);
+   for(const bend of [0,.26,.65,1.1,1.7,2.6,4]){
+    const elbow=mix(base,tip,.64);
+    elbow[0]+=-.08+bend*cos(angle+turn);elbow[2]+=bend*sin(angle+turn);
+    if(!clearSegment(base,elbow,.027)||!clearSegment(elbow,tip,.024))continue;
+    const branches=twigs.map((delta,j)=>{
+     const anchor=mix(elbow,tip,.15+j*.19);
+     return [anchor,add(anchor,delta)];
+    });
+    if(branches.every(([a,b])=>clearSegment(a,b,kind===3?.02:.11)&&clearSegment(b,b,kind===3?.16:.1)))return {base,elbow,tip,branches};
+   }
+  }
+  // A crowded or manually lowered flower can block the normal fan at the binding.
+  // Leave the binding below the lowest head and turn upward outside the crown.
+  const outside=Math.max(...flowerHeads.map(h=>Math.hypot(h.center[0],h.center[2])+h.radius))+.65;
+  const floor=Math.min(base[1],...flowerHeads.map(h=>h.center[1]-h.radius-.35));
+  const elbow=[outside*cos(angle),floor,outside*sin(angle)];
+  const tip=[elbow[0],Math.max(end[1],floor+1),elbow[2]];
+  return {base:[0,floor,0],elbow,tip,branches:twigs.map((d,j)=>{
+   const anchor=mix(elbow,tip,.15+j*.19);return [anchor,add(anchor,d)];
+  })};
+ }
  for(const [kind,k] of fillers){
   if(kind===4&&k>=8&&k<12)continue;
   const a=k*2.39996+.45,x=cos(a),z=sin(a);
@@ -207,10 +254,9 @@ export function bouquet(s,framing){
   const baseEnd=roundRoses?crownPoint(x*crownRadius*.92,z*crownRadius*.92,crownHeight(.85)-.13):[x*(.82+.18*(k%3))*radius,1.58+.63*(k%3)/2,z*(k<8?.38:radius)+.08];
 
   const end=place(kind,k,baseEnd,.23);
-  const elbow=mix(tie,end,.64);elbow[0]-=.08;stem(tie,elbow,.021);stem(elbow,end,.014);
-  for(let j=0;j<5;j++){
-   const anchor=mix(elbow,end,.15+j*.19),sign=j%2?1:-1;
-   const tip=add(anchor,[sign*(.18+.08*sin(k)),.20+.06*cos(j),.11*cos(k+j)]);
+  const route=routeSpray(end,k,kind);
+  stem(route.base,route.elbow,.021);stem(route.elbow,route.tip,.014);
+  for(const [j,[anchor,tip]] of route.branches.entries()){
    if(kind===3){
     stem(anchor,tip,.009);bloom(tip,.12+.025*sin(k+j),[.45*cos(k),.4,.7*sin(k)+.3],3,j);
    }else leaf(anchor,tip,.063+(j%2)*.018,k%2?0x637b6e:0x425e53);
