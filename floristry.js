@@ -223,10 +223,10 @@ export function bouquet(s,framing){
   let base=tie;
   while(!clearSegment(base,base,.028))base=add(base,[0,-.2,0]);
   const twigs=Array.from({length:5},(_,j)=>[(j%2?1:-1)*(.18+.08*sin(k)),.20+.06*cos(j),.11*cos(k+j)]);
-  const angle=Math.atan2(end[2],end[0]),sweep=[0,.55,-.55,1.2,-1.2,2.2,-2.2,PI];
+  const angle=Math.atan2(end[2],end[0]),sweep=[-PI/2-angle,0,.55,-.55,1.2,-1.2,2.2,-2.2,PI];
   for(let ring=0;ring<65;ring++)for(const turn of ring?sweep:[0]){
    const step=ring*.15,tip=add(end,[cos(angle+turn)*step,0,sin(angle+turn)*step]);
-   for(const bend of [0,.26,.65,1.1,1.7,2.6,4]){
+   for(const bend of [0,.12,.24]){
     const elbow=mix(base,tip,.64);
     elbow[0]+=-.08+bend*cos(angle+turn);elbow[2]+=bend*sin(angle+turn);
     if(!clearSegment(base,elbow,.027)||!clearSegment(elbow,tip,.024))continue;
