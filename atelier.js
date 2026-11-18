@@ -1,5 +1,5 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=stemmove2';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=pick3';
+import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=pick3';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
  if(!hash.startsWith('#flower='))return null;
@@ -36,7 +36,7 @@ function decode(hash){
   state.moves={};
   for(const entry of moves.split('~')){
    const [key,...parts]=entry.split(':');
-   if(!stemsFor(state).some(([k,i])=>key===k+'-'+i)||parts.length!==3)continue;
+   if(!(stemsFor(state).some(([k,i])=>key===k+'-'+i)||/^stock-[01]$/.test(key))||parts.length!==3)continue;
    const delta=parts.map(Number);
    if(delta.every(v=>Number.isFinite(v)&&Math.abs(v)<=2))state.moves[key]=delta;
   }
@@ -57,8 +57,16 @@ const wall=document.createElement('canvas');
 wall.className='lit-wall';wall.setAttribute('aria-hidden','true');canvas.before(wall);
 function draw(){view.render(yaw,pitch);}
 let cardStart,frontPitch,geometry,editing=false;
+let frameKey,framing;
 function update(){
- const model=geometry=bouquet(state);cardStart=model.cardStart;
+ const {moves,...fixed}=state;
+ const key=JSON.stringify(fixed);
+ if(key!==frameKey){framing=null;frameKey=key;}
+ if(!framing&&moves&&state.stems){
+  const base=bouquet(fixed);framing={fit:base.fit,middle:base.middle};
+ }
+ const model=geometry=bouquet(state,framing);
+ framing={fit:model.fit,middle:model.middle};cardStart=model.cardStart;
  if(frontPitch!==model.frontPitch){frontPitch=model.frontPitch;pitch=frontPitch;}
  view.setMesh(prepare(model,state.direction,state.lamp));draw();
 }
@@ -89,21 +97,24 @@ function editMode(on){
  editing=on;marker.hidden=true;photo.parentElement.classList.toggle('editing',on);
  $('move').textContent=on?'完成移动':'移动花枝';
  $('move').setAttribute('aria-pressed',String(on));
- document.querySelector('.viewbar span').textContent=on?'按住花头或枝尖拖动':'拖动旋转 · 长按存图';
+ document.querySelector('.viewbar span').textContent=on?'点选花枝，再拖动它':'拖动旋转 · 长按存图';
 }
 $('move').onclick=()=>editMode(!editing);
 function unitScale(rect){return zoom*Math.min(rect.width/3.98,rect.height/5.13)*geometry.fit;}
 function pickStem(e){
- const rect=photo.getBoundingClientRect(),scale=unitScale(rect);
- let best=null,bestDistance=Infinity;
- for(const a of geometry.anchors){
-  const [x,y,z]=a.p,depth=x*Math.sin(yaw)+z*Math.cos(yaw);
-  const sx=rect.width/2+(x*Math.cos(yaw)-z*Math.sin(yaw))*scale;
-  const sy=rect.height/2-((y-geometry.middle)*Math.cos(pitch)-depth*Math.sin(pitch))*scale;
-  const dist=Math.hypot(e.clientX-rect.left-sx,e.clientY-rect.top-sy);
-  if(dist<=Math.max(18,scale*a.radius)&&dist<bestDistance){bestDistance=dist;best=a.key;}
- }
- return best;
+ const rect=photo.getBoundingClientRect();
+ const vertex=view.hitVertex((e.clientX-rect.left)*canvas.width/rect.width,(e.clientY-rect.top)*canvas.height/rect.height,yaw,pitch);
+ return geometry.ranges.findLast(r=>r.start<=vertex)?.key;
+
+}
+function moveStem(e){
+   const u=unitScale(photo.getBoundingClientRect()),dx=(e.clientX-drag.x)/u,dy=(drag.y-e.clientY)/u;
+   const cs=Math.cos(yaw),sn=Math.sin(yaw),sp=Math.sin(pitch);
+   const delta=[dx*cs-dy*sp*sn,dy*Math.cos(pitch),-dx*sn-dy*sp*cs];
+   state.moves??={};
+   const previous=drag.origin;
+   state.moves[drag.stem]=previous.map((v,i)=>Math.max(-2,Math.min(2,Math.round((v+delta[i])*100)/100)));
+   update();
 }
 function showTarget(e){
  const rect=photo.getBoundingClientRect();
@@ -116,7 +127,11 @@ photo.onpointerdown=e=>{
   marker.hidden=true;if(drag)delete drag.stem;pinch={distance:Math.max(1,separation()),zoom};if(drag)drag.moved=true;return;
  }
  drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,started:e.timeStamp};
- if(editing){drag.stem=pickStem(e);if(drag.stem)showTarget(e);return;}
+ if(editing){drag.stem=pickStem(e);if(drag.stem){
+   drag.origin=state.moves?.[drag.stem]||[0,0,0];showTarget(e);const [kind,slot]=drag.stem.split('-');
+   const name=kind==='stock'?'配花':[...options.blooms,...options.sprigs][Number(kind)];
+   document.querySelector('.viewbar span').textContent='已选中'+name+' · '+(Number(slot)+1);
+  }else{marker.hidden=true;document.querySelector('.viewbar span').textContent='请点露出的花瓣、叶片或茎';}return;}
  // Keep the native image menu attached to the same image that received the touch.
  photo.src=snapshot().toDataURL('image/png');
 };
@@ -127,13 +142,13 @@ photo.onpointermove=e=>{
  if(!drag||drag.id!==e.pointerId)return;
  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
  if(!drag.moved&&Math.hypot(dx,dy)<6)return;
- if(editing){drag.moved=true;if(drag.stem)showTarget(e);return;}
+ if(editing){drag.moved=true;if(drag.stem){showTarget(e);if(geometry.anchors.length<25)moveStem(e);}return;}
  drag.moved=true;yaw-=dx*.012;pitch=(pitch+dy*.009)%(2*Math.PI);
  drag.x=e.clientX;drag.y=e.clientY;draw();
 };
 function endDrag(e){
  if(!pointers.delete(e.pointerId))return;
- marker.hidden=true;pinch=null;drag=null;hold=performance.now()+2500;
+ if(!editing||!drag?.stem)marker.hidden=true;pinch=null;drag=null;hold=performance.now()+2500;
  if(pointers.size){const [id,pt]=pointers.entries().next().value;drag={id,...pt,moved:true,started:e.timeStamp};}
 };
 photo.onlostpointercapture=photo.onpointercancel=endDrag;
@@ -141,13 +156,7 @@ photo.onpointerup=e=>{
  if(drag?.id!==e.pointerId){endDrag(e);return;}
  if(editing){
   if(drag.stem&&drag.moved&&!pinch){
-   const u=unitScale(photo.getBoundingClientRect()),dx=(e.clientX-drag.x)/u,dy=(drag.y-e.clientY)/u;
-   const cs=Math.cos(yaw),sn=Math.sin(yaw),sp=Math.sin(pitch);
-   const delta=[dx*cs-dy*sp*sn,dy*Math.cos(pitch),-dx*sn-dy*sp*cs];
-   state.moves??={};
-   const previous=state.moves[drag.stem]||[0,0,0];
-   state.moves[drag.stem]=previous.map((v,i)=>Math.max(-2,Math.min(2,Math.round((v+delta[i])*100)/100)));
-   update();
+   moveStem(e);
   }
   endDrag(e);return;
  }

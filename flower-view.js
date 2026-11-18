@@ -78,9 +78,9 @@ export function makeView(canvas){
   }
   return projected;
  }
- function hitsCard(x,y,yaw,pitch,cardStart){
+ function hitVertex(x,y,yaw,pitch){
   const projected=projectMesh(yaw,pitch);
-  let nearest=-Infinity,hit=false;
+  let nearest=-Infinity,hit=-1;
   for(let i=0;i<projected.length;i+=9){
    const ax=projected[i],ay=projected[i+1],bx=projected[i+3],by=projected[i+4],cx=projected[i+6],cy=projected[i+7];
    if(x<Math.min(ax,bx,cx)||x>Math.max(ax,bx,cx)||y<Math.min(ay,by,cy)||y>Math.max(ay,by,cy))continue;
@@ -89,7 +89,7 @@ export function makeView(canvas){
    const u=((by-cy)*(x-cx)+(cx-bx)*(y-cy))/area,v=((cy-ay)*(x-cx)+(ax-cx)*(y-cy))/area;
    if(u<0||v<0||u+v>1)continue;
    const z=u*projected[i+2]+v*projected[i+5]+(1-u-v)*projected[i+8];
-   if(z>nearest){nearest=z;hit=i/3>=cardStart;}
+   if(z>nearest){nearest=z;hit=i/3;}
   }
   return hit;
  }
@@ -116,5 +116,5 @@ export function makeView(canvas){
   }
   flat.putImageData(img,0,0);
  }
- return {accelerated:!!gl,hitsCard,setZoom(value){zoom=value;},setMesh(data){mesh=data;if(gl)gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);},render};
+ return {accelerated:!!gl,hitVertex,hitsCard:(x,y,yaw,pitch,start)=>hitVertex(x,y,yaw,pitch)>=start,setZoom(value){zoom=value;},setMesh(data){mesh=data;if(gl)gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);},render};
 }

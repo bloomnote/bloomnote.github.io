@@ -27,15 +27,16 @@ export function stemsFor(s){
  if(s.sprigs.includes(1))for(let i=8;i<12;i++)stems.push([4,i]);
  return stems;
 }
-export function bouquet(s){
+export function bouquet(s,framing){
  const stems=stemsFor(s),flowers=stems.filter(([k])=>k<3),fillers=stems.filter(([k])=>k>=3);
  const roundRoses=flowers.length>=24&&flowers.every(([kind])=>kind===1);
  const dense=stems.length>27;
 
  const points=[],colors=[],indices=[],anchors=[];
+ const ranges=[];let owner=null;
  const original=new Set(stemsFor({...s,stems:null}).map(([k,i])=>k+'-'+i));
  function place(kind,slot,base,radius){
-  const key=kind+'-'+slot;
+  const key=kind+'-'+slot;owner=key;
   const clearance=p=>anchors.reduce((gap,a)=>Math.min(gap,Math.hypot(...sub(a.base,p))/(a.radius+radius)),Infinity);
   let best=base;
   if(!roundRoses&&!original.has(key)&&clearance(base)<1){
@@ -51,6 +52,7 @@ export function bouquet(s){
   return p;
  }
  function sheet(m,n,point,color){
+  if(!ranges.length||ranges[ranges.length-1].key!==owner)ranges.push({start:indices.length,key:owner});
   let start=points.length/3;
   for(let j=0;j<=n;j++)for(let i=0;i<=m;i++){
    let u=i/m,v=j/n; points.push(...point(u,v));colors.push(...color(u,v));
@@ -180,13 +182,15 @@ export function bouquet(s){
   sheet(4,6,(u,v)=>add(mix(a,b,v),add(mul(side,(2*u-1)*w*sin(PI*v)),[0,0,.07*sin(PI*v)*(1-Math.abs(2*u-1))])),(u,v)=>mix(rgb(shade),rgb(0xa5b49a),.13*v+.13*u));
  }
  {
-  for(const [x,y,z] of layout.filter(h=>h[4]===1&&!roundRoses)){
+  for(const [x,y,z,,kind,slot] of layout.filter(h=>h[4]===1&&!roundRoses)){
+   owner=kind+'-'+slot;
    const base=[x*.72,y-.42,z-.06];
    for(const sign of [-1,1])leaf(base,add(base,[sign*.36,.23,.08]),.105,0x475943);
   }
  }
  {
-  for(const [x,y,z] of layout.filter(h=>h[4]===2)){
+  for(const [x,y,z,,kind,slot] of layout.filter(h=>h[4]===2)){
+   owner=kind+'-'+slot;
    const base=[x*.25,-.59,z*.28],tip=[x*1.32,y+.17,z-.13];
    const sign=x>0?1:-1;
    sheet(8,18,(u,v)=>{
@@ -218,9 +222,14 @@ export function bouquet(s){
    [[-.12,-.36,.19],[-.83,.39,.51],.10],
    [[.13,-.43,.10],[.61,.38,.49],.09],
    [[.24,.23,.18],[.86,.83,.34],.08]
-  ])leaf(a,b,w,0x475d40);
+  ]){
+   const lily=anchors.filter(a=>a.key.startsWith('0-')).sort((x,y)=>Math.abs(x.base[0]-b[0])-Math.abs(y.base[0]-b[0]))[0];
+   owner=lily.key;const delta=sub(lily.p,lily.base);leaf(add(a,mul(delta,.42)),add(b,delta),w,0x475d40);
+  }
   // Flowers lower on a stock spike have opened; small buds gather at its tip.
-  for(const [x,y,z] of [[-.58,2.02,-.08],[.13,1.73,-.50]]){
+  for(const [index,raw] of [[-.58,2.02,-.08],[.13,1.73,-.50]].entries()){
+   owner='stock-'+index;
+   const [x,y,z]=add(raw,s.moves?.[owner]||[0,0,0]);
    const tip=[x,y,z],base=[x*.62,.78,z];stem(tie,base,.022);stem(base,tip,.019);
    for(let j=0;j<14;j++){
     const t=(j+.5)/14,a=j*2.4,xz=.14*(1-.6*t);
@@ -251,7 +260,8 @@ export function bouquet(s){
    }
   }
  }
- const reach=Math.max(...layout.map(([x,y,z,r])=>Math.hypot(x,z)+.69*r));
+ owner=null;
+ const reach=Math.max(...anchors.slice(0,flowers.length).map((a,i)=>Math.hypot(a.base[0],a.base[2])+.69*layout[i][3]));
  const spreadScale=s.stems?Math.max(.58,reach/1.40,.49+.14*Math.sqrt(fillers.length)):1;
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
  const papers=[[0x32343e,0x59606a,0xb0a296],[0x827788,0xb9aebc,0xcac1b6],[0xb29877,0xceb798,0xe0d1b6],[0x414634,0xc7bdab,0x575e44]][s.paper];
@@ -354,11 +364,12 @@ export function bouquet(s){
   for(let i=1;i<points.length;i+=3){top=Math.max(top,points[i]);bottom=Math.min(bottom,points[i]);}
   fit=Math.min(1,1.68/radius,4.48/(top-bottom));
   middle=(top+bottom)/2;
+  if(framing){fit=framing.fit;middle=framing.middle;}
   for(let i=0;i<points.length;i+=3){
    points[i]*=fit;
    points[i+1]=(points[i+1]-middle)*fit+.04;
    points[i+2]*=fit;
   }
  }
- return {anchors,fit,middle,points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
+ return {ranges,anchors,fit,middle,points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
 }
