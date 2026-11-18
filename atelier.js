@@ -1,4 +1,4 @@
-import {bouquet,options,initial,stemsFor} from './floristry.js?v=petal2';
+import {bouquet,options,initial,stemsFor} from './floristry.js?v=tucked1';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=zoom1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash){
@@ -62,13 +62,8 @@ function front(){yaw=0;pitch=.08;hold=performance.now()+2800;draw();} $('front')
 let zoom=1;
 function setZoom(value){
  zoom=Math.max(.75,Math.min(3,value));view.setZoom(zoom);draw();
- $('scale').textContent=Number(zoom.toFixed(2))+'×';
- $('smaller').disabled=zoom<=.75;$('larger').disabled=zoom>=3;
  hold=performance.now()+2500;
 }
-$('smaller').onclick=()=>setZoom(zoom/1.25);
-$('larger').onclick=()=>setZoom(zoom*1.25);
-$('scale').onclick=()=>setZoom(1);
 const pointers=new Map();
 let pinch=null;
 function separation(){

@@ -65,10 +65,6 @@ input{width:100%;padding:6px}[hidden]{display:none!important}
 .quantity input{min-width:0;text-align:center;border:0;border-bottom:1px solid var(--rule);background:transparent;color:inherit;font:inherit;appearance:textfield}
 .quantity input::-webkit-inner-spin-button{appearance:none}
 
-.zoom{position:absolute;right:8px;bottom:8px;display:flex;align-items:center;background:#faf7eced;border:1px solid #929987;color:#33463b;border-radius:3px}
-.zoom button{padding:0 7px;min-width:36px;min-height:36px;font-size:16px;color:inherit;background:transparent;border:0}
-.zoom button:disabled{opacity:.35}
-#scale{font-size:12px;font-variant-numeric:tabular-nums}
 #quantities{margin:4px 0 18px}
 #quantities summary{cursor:pointer;color:var(--muted);padding:8px 0;width:fit-content}
 #counters{margin-top:5px}
