@@ -53,12 +53,13 @@ export function prepare({points,colors,indices},direction=0,lamp=0){
    const cosine=(dx*sx+dy*(sy-1)+dz*(sz-.2))/(distance*aimLength);
    const u=Math.min(1,Math.max(0,(cosine-.90)/.074)),cone=u*u*(3-2*u);
    const lambert=Math.max(0,(dx*nx+dy*ny+dz*nz)*(nz<0?-1:1)/(len*distance));
-   const key=cone*Math.min(1.9,20/(distance*distance))*(.25+.99*lambert)*(.24+.76*visible);
+   // Bound the incident light before applying it to each petal's own color.
+   const attenuation=1/(1+.025*distance*distance);
+   const key=cone*attenuation*(.18+.82*lambert)*(.24+.76*visible);
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
-    vertices[o+3+d]=Math.min(.985,colors[i+d]*(.24+key*1.34*(1+.35*(tint[d]-1))));
+    vertices[o+3+d]=colors[i+d]*(.54+.49*key*(1+.22*(tint[d]-1)));
    }
-
 
  }
  return vertices;
