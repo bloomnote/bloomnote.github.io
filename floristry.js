@@ -1,3 +1,4 @@
+import {colors as paletteColors} from './colors.js';
 import {flowers as flowerCatalog,foliage,botanical,shades} from './botanicals.js?v=garden2';
 // Bouquet coordinates are in florist's view: x right, y up, z toward the viewer.
 const {sin,cos,PI,pow}=Math, TAU=PI*2;
@@ -9,10 +10,9 @@ const unit=a=>mul(a,1/(Math.hypot(...a)||1));
 const mix=(a,b,t)=>add(mul(a,1-t),mul(b,t));
 const rgb=h=>[16,8,0].map(k=>((h>>k)&255)/255);
 export const options={
- direction:["左上","正上","右上","左侧","右侧","右前"],lamp:["自然白","暖琥珀","冷月蓝","柔粉","烛金"],
- background:["暖黄","墨黑","雾灰","雾蓝","暖白"],
+ direction:["左上","正上","右上","左侧","右侧","右前"],
  blooms:['白百合','烟粉玫瑰','紫郁金香','向日葵','浅蓝绣球'], sprigs:['雾蓝星花','银绿叶枝','红果枝','圆叶尤加利'],
- fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边','立体圆抱','半裸腰封'], paper:['炭墨','灰紫','亚麻','苔绿棉纸','奶白','海盐蓝'], ribbon:['雾蓝','藕紫','墨绿','象牙白','栗红','香槟金'], card:['无卡片','奶油白','灰粉','雾蓝','鼠尾草绿','淡杏']
+ fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边','立体圆抱','半裸腰封'], ...Object.fromEntries(Object.entries(paletteColors).map(([key, rows]) => [key, rows.map(row => row[0])]))
 };
 // Stem ids 0–4 are used by previously shared gifts.
 options.blooms.push(...flowerCatalog.map(f=>f[0]));
@@ -403,7 +403,7 @@ export function bouquet(s,framing){
  const reach=Math.max(...anchors.slice(0,flowers.length).map((a,i)=>Math.hypot(a.base[0],a.base[2])+.69*layout[i][3]));
  const spreadScale=s.stems?Math.max(.58,reach/1.40,.49+.14*Math.sqrt(fillers.length)):1;
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
- const papers=[[0x32343e,0x59606a,0xb0a296],[0x827788,0xb9aebc,0xcac1b6],[0xb29877,0xceb798,0xe0d1b6],[0x414634,0xc7bdab,0x575e44],[0xdbd6ca,0xf4ede0,0xe5dace],[0x8daab3,0xc4d5d7,0xa7bfc6]][s.paper];
+ const papers=paletteColors.paper[s.paper][2];
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
@@ -477,7 +477,7 @@ export function bouquet(s,framing){
   sheet(50,24,surface,(u,v)=>mul(base,.90+.09*Math.abs(((u*(s.fold===3?9:3.7)+.16*k)%1)-.5)*2+.028*sin(153*u+37*v)*cos(49*v-11*u)));
  });
  const handleStart=points.length;
- const silkColor=[0x879fb8,0xab849c,0x385650,0xe6ded0,0x8c4049,0xcda978][s.ribbon],silk=rgb(silkColor);
+ const silkColor=parseInt(paletteColors.ribbon[s.ribbon][1].slice(1),16),silk=rgb(silkColor);
  if(bareBand){
   sheet(48,2,(u,v)=>[(bandRadius+.005)*sin(TAU*u),tie[1]+(v-.5)*.03,(bandRadius+.005)*cos(TAU*u)],()=>silk);
   for(const sign of [-1,1]){
@@ -526,7 +526,7 @@ export function bouquet(s,framing){
  const cardStart=indices.length;
  if(s.card){
   // Clip the tag to the outer left shoulder, just beneath its paper lip.
-  const tint=rgb([0,0xf2e5cb,0xe6c4c2,0xc3cfdc,0xc3ccbb,0xedd2bb][s.card]);
+  const tint=rgb(parseInt(paletteColors.card[s.card][1].slice(1),16));
   const tag=(u,v)=>{const p=tagSurface(.70+.098*u,.84+.169*v);return [p[0]-.023,p[1],p[2]+.032];};
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }

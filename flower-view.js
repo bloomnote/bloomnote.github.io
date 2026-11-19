@@ -1,3 +1,4 @@
+import {colors} from './colors.js';
 // Bake broad window shadows once per arrangement, shared by GPU and CPU previews.
 function windowShadow(points,indices,[lx,ly,lz]){
  const horizontal=Math.hypot(lx,lz),rightX=lz/horizontal,rightZ=-lx/horizontal;
@@ -29,7 +30,7 @@ function windowShadow(points,indices,[lx,ly,lz]){
  return exposure;
 }
 export const lightPositions=[[-.65,.72,.75],[0,1,.52],[.65,.72,.75],[-1,.17,.52],[1,.17,.52],[.45,.24,1]];
-export const lampColors=[[1,1,1],[1.18,.98,.72],[.8,.98,1.2],[1.17,.86,.96],[1.21,1.03,.81]];
+export const lampColors=colors.lamp.map(row => row[2]);
 export function prepare({points,colors,indices},direction=0,lamp=0){
  const position=lightPositions[direction],length=Math.hypot(...position);
  const axis=position.map(component=>component/length);
