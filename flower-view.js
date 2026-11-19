@@ -31,7 +31,7 @@ function windowShadow(points,indices,[lx,ly,lz]){
 }
 export const lightPositions=[[-.65,.72,.75],[0,1,.52],[.65,.72,.75],[-1,.17,.52],[1,.17,.52],[.45,.24,1]];
 export const lampColors=colors.lamp.map(row => row[2]);
-export function prepare({points,colors,indices},direction=0,lamp=0){
+export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,lamp=0){
  const position=direction===0?[-.42,.86,.65]:lightPositions[direction],length=Math.hypot(...position);
  const axis=position.map(component=>component/length);
  const tint=lampColors[lamp];
@@ -56,9 +56,21 @@ export function prepare({points,colors,indices},direction=0,lamp=0){
    // Bound the incident light before applying it to each petal's own color.
    const attenuation=1/(1+.025*distance*distance);
    const key=cone*attenuation*(.18+.82*lambert)*(.24+.76*visible);
+   // A wider beam reaches the lower wrapping. Reduce fill so overlapping folds cast shadows.
+   const wrap=j>=wrapStart && j<cardStart;
+   let diffuse=key;
+   if(wrap){
+    const radius=Math.hypot(points[i],points[i+2]) || 1;
+    const facing=(points[i]*axis[0]+points[i+2]*axis[2])/radius;
+    const broad=.5+.5*facing;
+    diffuse=(.40+.60*cone)*(.58*broad+.42*lambert)*(.44+.56*visible);
+   }
+   const fill=wrap ? .31 : .54;
+   const strength=wrap ? .94 : .49;
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
-    vertices[o+3+d]=colors[i+d]*(.54+.49*key*(1+.22*(tint[d]-1)));
+    const lit=colors[i+d]*(fill+strength*diffuse*(1+.22*(tint[d]-1)));
+    vertices[o+3+d]=wrap && lit>.82 ? .82+.16*(1-Math.exp(- (lit-.82)/.16)) : lit;
    }
 
  }

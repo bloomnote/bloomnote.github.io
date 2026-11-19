@@ -403,6 +403,7 @@ export function bouquet(s,framing){
  const reach=Math.max(...anchors.slice(0,flowers.length).map((a,i)=>Math.hypot(a.base[0],a.base[2])+.69*layout[i][3]));
  const spreadScale=s.stems?Math.max(.58,reach/1.40,.49+.14*Math.sqrt(fillers.length)):1;
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
+ const wrapStart=indices.length;
  const papers=paletteColors.paper[s.paper][2];
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const standRadius=crownRadius*.32;
@@ -545,5 +546,5 @@ export function bouquet(s,framing){
    points[i+2]*=fit;
   }
  }
- return {ranges,anchors,fit,middle,points,colors,indices,cardStart,frontPitch:roundRoses?.55:.08};
+ return {ranges,anchors,fit,middle,points,colors,indices,wrapStart,cardStart,frontPitch:roundRoses?.55:.08};
 }
