@@ -1,7 +1,7 @@
-import {swatches} from './colors.js';
+import {swatches} from './colors.js?v=studio2';
 import {flowers,shades} from './botanicals.js?v=garden2';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=palette1';
-import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=palette1';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=studio2';
+import {prepare,makeView} from './flower-view.js?v=studio2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
@@ -314,8 +314,11 @@ function panel(){
     }
     if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}delete state.moves;state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
     else state[key]=i;
-    status('');if(key!=='background')update();
-    if(['background','direction','lamp'].includes(key))refreshBackdrop();panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
+    status('');
+    if(key==='background')refreshBackdrop();
+    else if(key==='direction'||key==='lamp'){view.setMesh(prepare(geometry,state.direction,state.lamp));draw();}
+    else update();
+    panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
    };row.append(b);
   });field.append(legend,row);return field;
  }));
@@ -368,14 +371,22 @@ $('save').onclick=()=>{
 function refreshBackdrop(){
  wall.width=canvas.width;wall.height=canvas.height;
  const ctx=wall.getContext('2d');
- const [x,y]=lightPositions[state.direction],tint=lampColors[state.lamp];
  const base=backdrops[state.background].slice(1).match(/../g).map(hex=>parseInt(hex,16));
- const cx=.5+.54*x,cy=.55-.54*y;
- ctx.scale(wall.width,wall.height);
- const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,1.18);
- for(const [offset,power] of [[0,1],[.3,.83],[.65,.34],[1,0]]){
-  const rgb=base.map((channel,i)=>Math.round(Math.min(255,channel*.83+power*(39+channel*.07)*tint[i]**2)));
-  glow.addColorStop(offset,'rgb('+rgb.join(',')+')');
+ const sample=document.createElement('canvas');
+ sample.width=256;sample.height=256;
+ const surface=sample.getContext('2d'),image=surface.createImageData(256,256);
+ function falloff(u,v,cx,cy,rx,ry){
+  return Math.exp(-(((u-cx)/rx)**2+((v-cy)/ry)**2));
  }
- ctx.fillStyle=glow;ctx.fillRect(0,0,1,1);
+ for(let row=0;row<256;row++)for(let col=0;col<256;col++){
+  const u=col/255,v=row/255;
+  const depth=4*falloff(u,v,.15,.22,.62,.54)+18*falloff(u,v,.467,.715,.55,.164)
+   -10*falloff(u,v,.52,.683,.18,.019)-4*falloff(u,v,.575,.698,.25,.051);
+  const i=(row*256+col)*4;
+  for(let c=0;c<3;c++){
+   image.data[i+c]=state.background===1?(5+depth)*[1.045,1.02,1][c]:base[c]*(.72+depth*.012);
+  }
+  image.data[i+3]=255;
+ }
+ surface.putImageData(image,0,0);ctx.drawImage(sample,0,0,wall.width,wall.height);
 }

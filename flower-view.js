@@ -1,4 +1,4 @@
-import {colors} from './colors.js';
+import {colors} from './colors.js?v=studio2';
 // Bake broad window shadows once per arrangement, shared by GPU and CPU previews.
 function windowShadow(points,indices,[lx,ly,lz]){
  const horizontal=Math.hypot(lx,lz),rightX=lz/horizontal,rightZ=-lx/horizontal;
@@ -32,9 +32,11 @@ function windowShadow(points,indices,[lx,ly,lz]){
 export const lightPositions=[[-.65,.72,.75],[0,1,.52],[.65,.72,.75],[-1,.17,.52],[1,.17,.52],[.45,.24,1]];
 export const lampColors=colors.lamp.map(row => row[2]);
 export function prepare({points,colors,indices},direction=0,lamp=0){
- const position=lightPositions[direction],length=Math.hypot(...position);
+ const position=direction===0?[-.42,.86,.65]:lightPositions[direction],length=Math.hypot(...position);
  const axis=position.map(component=>component/length);
  const tint=lampColors[lamp];
+ const source=direction===0?[-1.65,4,3.15]:position.map(v=>v*4);
+ const [sx,sy,sz]=source,aimLength=Math.hypot(sx,sy-1,sz-.2);
  const exposure=windowShadow(points,indices,axis);
  const vertices=new Float32Array(indices.length*6),normals=new Float32Array(points.length);
  for(let t=0;t<indices.length;t+=3){
@@ -47,9 +49,17 @@ export function prepare({points,colors,indices},direction=0,lamp=0){
  for(let j=0;j<indices.length;j++){
   const i=indices[j]*3,o=j*6,nx=normals[i],ny=normals[i+1],nz=normals[i+2],len=Math.hypot(nx,ny,nz)||1;
   const visible=exposure[indices[j]];
-  const incidence=Math.abs((axis[0]*nx+axis[1]*ny+axis[2]*nz)/len);
-  const direct=(.12+.43*visible)*incidence+.065*visible;
-  for(let d=0;d<3;d++){vertices[o+d]=points[i+d];vertices[o+3+d]=colors[i+d]*(.55+tint[d]*direct);}
+   const dx=sx-points[i],dy=sy-points[i+1],dz=sz-points[i+2],distance=Math.hypot(dx,dy,dz)||1;
+   const cosine=(dx*sx+dy*(sy-1)+dz*(sz-.2))/(distance*aimLength);
+   const u=Math.min(1,Math.max(0,(cosine-.90)/.074)),cone=u*u*(3-2*u);
+   const lambert=Math.max(0,(dx*nx+dy*ny+dz*nz)*(nz<0?-1:1)/(len*distance));
+   const key=cone*Math.min(1.9,20/(distance*distance))*(.25+.99*lambert)*(.24+.76*visible);
+   for(let d=0;d<3;d++){
+    vertices[o+d]=points[i+d];
+    vertices[o+3+d]=Math.min(.985,colors[i+d]*(.24+key*1.34*(1+.35*(tint[d]-1))));
+   }
+
+
  }
  return vertices;
 }
