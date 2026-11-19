@@ -1,5 +1,5 @@
 import {flowers,shades} from './botanicals.js?v=garden2';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=garden2';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=wrap2';
 import {prepare,makeView,lightPositions,lampColors} from './flower-view.js?v=garden2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){

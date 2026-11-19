@@ -12,7 +12,7 @@ export const options={
  direction:["左上","正上","右上","左侧","右侧","右前"],lamp:["自然白","暖琥珀","冷月蓝","柔粉","烛金"],
  background:["暖黄","墨黑","雾灰","雾蓝","暖白"],
  blooms:['白百合','烟粉玫瑰','紫郁金香','向日葵','浅蓝绣球'], sprigs:['雾蓝星花','银绿叶枝','红果枝','圆叶尤加利'],
- fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边'], paper:['炭墨','灰紫','亚麻','苔绿棉纸','奶白','海盐蓝'], ribbon:['雾蓝','藕紫','墨绿','象牙白','栗红','香槟金'], card:['无卡片','奶油白','灰粉','雾蓝','鼠尾草绿','淡杏']
+ fold:['斜襟高背','双翼','环抱','扇形褶纸','低口花边','立体圆抱','半裸腰封'], paper:['炭墨','灰紫','亚麻','苔绿棉纸','奶白','海盐蓝'], ribbon:['雾蓝','藕紫','墨绿','象牙白','栗红','香槟金'], card:['无卡片','奶油白','灰粉','雾蓝','鼠尾草绿','淡杏']
 };
 // Stem ids 0–4 are used by previously shared gifts.
 options.blooms.push(...flowerCatalog.map(f=>f[0]));
@@ -181,6 +181,14 @@ export function bouquet(s,framing){
  }
  const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(...flowers.map(([,i])=>i)))-2)*.55):0;
  const tie=[0,roundRoses?1-.63*.49*Math.sqrt(flowers.length):-1.30-extent*.94,0];
+ const bareBand=s.fold===6;
+ const stemCount=stems.length;
+ const bandRadius=.047*Math.sqrt(stemCount)+.036;
+ const bandHeight=.14+.005*Math.min(stemCount,20);
+ const bindingPoint=index=>{
+  const angle=index*2.399963, radius=(bandRadius-.03)*Math.sqrt((index+.5)/stemCount);
+  return [radius*cos(angle),tie[1],radius*sin(angle)];
+ };
  const lilyStudy=s.blooms.length===1&&s.blooms[0]===0;
  const single=s.blooms.length===1?s.blooms[0]:-1;
  const roseHeads=[[-.42,.57,.47,.77],[.42,.87,.33,.81],[-.27,1.39,.04,.65],[.54,1.67,-.12,.52],[.12,.13,.67,.70]];
@@ -211,17 +219,19 @@ export function bouquet(s,framing){
   const p=place(kind,i,[x,y,z],r*(kind===2?.42:.76));
   [x,y,z]=p;layout[index].splice(0,3,...p);
   const facing=roundRoses?crownNormal[index]:i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
+  const start=bareBand?bindingPoint(index):tie;
+  if(bareBand)stem([start[0]*1.9,tie[1]-.85-.07*cos(i),start[2]*1.9],start,.026);
   if(kind===2){
-   let previous=tie;
+   let previous=start;
    for(let j=1;j<=8;j++){
-    const t=j/8,next=mix(tie,p,t);
+    const t=j/8,next=mix(start,p,t);
     next[0]-=.28*x*sin(PI*t);next[2]-=.11*sin(PI*t);
     stem(previous,next,.026,0x687e53);previous=next;
    }
-  }else if(roundRoses){
+  }else if(roundRoses&&!bareBand){
    const anchor=[x*.29,tie[1],z*.29];
    stem(anchor,p,.042);
-  }else stem(tie,p,.025);
+  }else stem(start,p,.025);
   const petalStart=points.length;
   bloom(p,r,facing,kind,.75+i*1.92,lilyStudy&&i===1?.76:1);
   const center=add(p,mul(unit(facing),r*(kind===2?.24:roundRoses?-.08:.18)));
@@ -398,7 +408,34 @@ export function bouquet(s,framing){
  const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
  let tagSurface;
- if(roundRoses){
+ if(bareBand){
+  const band=(u,v)=>{
+   const a=u*TAU;
+   return [bandRadius*sin(a),tie[1]+(v-.5)*bandHeight,bandRadius*cos(a)];
+  };
+  sheet(48,2,band,()=>rgb(papers[0]));
+  tagSurface=(u,v)=>[(u-.5)*2,tie[1]+(v-.85)*1.7,bandRadius+.035];
+  fillers.forEach((_,i)=>{
+   const p=bindingPoint(flowers.length+i);
+   stem([p[0]*1.8,p[1]-.80,p[2]*1.8],p,.017);
+   stem(p,tie,.017);
+  });
+ }else if(s.fold===5){
+  const baseRadius=roundRoses?standRadius:.21*waist;
+  const lipRadius=roundRoses?crownRadius+.27:1.41*spreadScale;
+  const lipY=roundRoses?1+crownHeight(1)-.16:.11;
+  for(let k=0;k<4;k++){
+   const surface=(u,v)=>{
+    const angle=k*PI/2+u*1.86+.58*v;
+    const crease=sin(PI*u)**2;
+    const radius=baseRadius+(lipRadius-baseRadius)*v+
+     lipRadius*(.035*u-.095*crease*sin(PI*v));
+    return [radius*sin(angle),tie[1]+(lipY-tie[1])*v+.055*v*sin(PI*u),radius*cos(angle)];
+   };
+   sheet(32,18,surface,(u,v)=>mul(rgb(papers[0]),.88+.13*u+.08*v));
+   if(k===0)tagSurface=surface;
+  }
+ }else if(roundRoses){
   // Low overlapping paper sheets follow the level underside of the flower dome.
   const panels=[9,11,8,15,12][s.fold];
   for(let k=0;k<panels;k++){
@@ -441,7 +478,13 @@ export function bouquet(s,framing){
  });
  const handleStart=points.length;
  const silkColor=[0x879fb8,0xab849c,0x385650,0xe6ded0,0x8c4049,0xcda978][s.ribbon],silk=rgb(silkColor);
- if(roundRoses){
+ if(bareBand){
+  sheet(48,2,(u,v)=>[(bandRadius+.005)*sin(TAU*u),tie[1]+(v-.5)*.03,(bandRadius+.005)*cos(TAU*u)],()=>silk);
+  for(const sign of [-1,1]){
+   sheet(4,14,(u,v)=>[sign*.11*sin(PI*v),tie[1]+.04*sin(TAU*v)+.022*(u-.5),bandRadius+.015+.02*sin(PI*v)],()=>silk);
+   sheet(3,8,(u,v)=>[sign*(.095*v+.018*u),tie[1]-.16*v,bandRadius+.02+.018*v],()=>silk);
+  }
+ }else if(roundRoses){
   const height=crownRadius*.23+.16;
   const foot=(u,v)=>{
    const a=u*TAU,r=standRadius*(1+(.08+.024*cos(13*a))*v);
@@ -462,7 +505,7 @@ export function bouquet(s,framing){
  bead([0,-1.32,.25],[.115,.09,.076],silkColor);
  for(let i=handleStart;i<points.length;i+=3){points[i]*=waist;points[i+1]=tie[1]+(points[i+1]+1.30)*(1+.30*extent);points[i+2]=points[i+2]*waist+tie[2];}
  }
- if(roundRoses){
+ if(roundRoses&&!bareBand&&s.fold!==5){
   // Lay a slender satin bow over the upper-left flowers, following the dome.
   const onRose=(x,y,lift)=>crownPoint(x*crownRadius,y*crownRadius,
    crownHeight(x*x+y*y)+.51+lift);
