@@ -89,6 +89,20 @@ try{
  throw error;
 }
 const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
+// Send fixed labels only. Never derive an analytics field from the gift or URL.
+const recorded = new Set();
+let returnDraft = false;
+function countAction(label, once = true, page = false) {
+ if (once && recorded.has(label)) return;
+ if (once) recorded.add(label);
+ if (location.hostname !== 'bloomnote.github.io' || navigator.doNotTrack === '1') return;
+ const params = new URLSearchParams({p: label, e: page ? '0' : '1'});
+ fetch('https://bloomnote.goatcounter.com/count?' + params, {
+  mode: 'no-cors', credentials: 'omit', referrerPolicy: 'no-referrer',
+  cache: 'no-store', keepalive: true
+ }).catch(() => {});
+}
+function startDraft() { if (!gift) countAction('editor_started'); }
 let yaw=0,pitch=.08,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0,hold=performance.now()+2800,tab=0,drag=null;
 const backdrops=swatches.background;
 const wall=document.createElement('canvas');
@@ -149,7 +163,7 @@ function moveStem(e){
    const u=unitScale(photo.getBoundingClientRect()),dx=(e.clientX-drag.x)/u,dy=(drag.y-e.clientY)/u;
    const cs=Math.cos(yaw),sn=Math.sin(yaw),sp=Math.sin(pitch);
    const delta=[dx*cs-dy*sp*sn,dy*Math.cos(pitch),-dx*sn-dy*sp*cs];
-   state.moves??={};
+   startDraft();state.moves??={};
    const previous=drag.origin;
    state.moves[drag.stem]=previous.map((v,i)=>Math.max(-2,Math.min(2,Math.round((v+delta[i])*100)/100)));
    update();
@@ -218,6 +232,7 @@ $('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
 for(const id of ['to','from']){
  $(id).value=gift&&state.card?(giftParams.get(id)??'').slice(0,60):'';
 }
+for(const id of ['to','from','note']) $(id).addEventListener('input',startDraft);
 function hasLetter(){return ['to','note','from'].some(id=>$(id).value.trim());}
 $('read-note').onclick=openNote;
 function openNote(){
@@ -257,7 +272,7 @@ function quantityControl(kind,name){
     next.push([kind,slot]);occupied.add(slot++);
    }
   }
-  state.stems=next;update();refreshCounts();status('');
+  startDraft();state.stems=next;update();refreshCounts();status('');
   for(const b of $('recipes').children)b.setAttribute('aria-pressed','false');
  }
  minus.className='minus';plus.className='plus';
@@ -277,7 +292,7 @@ function renderTones(){
   select.setAttribute('aria-label',stemNames[id]+'的花色');
   for(const name of ['原色',...Object.keys(shades).filter(name=>name!=='白底紫边'||id===12)])select.add(new Option(name,name));
   select.value=state.tones?.[id]||'原色';
-  select.onchange=()=>{
+  select.onchange=()=>{startDraft();
    state.tones??={};
    if(select.value==='原色')delete state.tones[id];else state.tones[id]=select.value;
    update();
@@ -303,7 +318,7 @@ function panel(){
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.onclick=()=>{startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
@@ -322,6 +337,7 @@ function panel(){
     }
     if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}delete state.moves;state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
     else state[key]=i;
+    startDraft();
     status('');
     if(key==='background')refreshBackdrop();
     else if(key==='direction'||key==='lamp'){view.setMesh(prepare(geometry,state.direction,state.lamp));draw();}
@@ -345,9 +361,12 @@ function finish(done){
  $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(isBloom(i)?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
  status('');$('url').hidden=true;if(done)front();
 }
-panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()=>finish(false);
+panel();finish(!!gift);
+countAction(gift ? '/gift' : '/editor',true,true);
+if(gift) countAction('gift_opened');
+$('finish').onclick=()=>{finish(true);startDraft();countAction('bouquet_completed');if(returnDraft)countAction('reply_completed');};$('back').onclick=()=>finish(false);
 $('reply').onclick=()=>{
- gift=null;
+ countAction('reply_started');returnDraft=true;gift=null;
  history.replaceState(null,'',location.pathname+location.search);
  for(const id of ['to','note','from'])$(id).value='';
  panel();finish(false);front();
@@ -368,6 +387,7 @@ function giftURL(){
 }
 $('share').onclick=async()=>{
  const url=new URL(giftURL());
+ if(!gift){countAction('share_created');if(returnDraft)countAction('reply_share_created');}
  try{if(navigator.share){await navigator.share({title:'送你一束花',url:url.href});return;}await navigator.clipboard.writeText(url.href);status('花束链接已复制');}
  catch(e){if(e.name==='AbortError')return;$('url').value=url.href;$('url').hidden=false;$('url').select();status('复制这条链接即可分享花束');}
 };
@@ -379,7 +399,7 @@ function snapshot(){
 }
 $('save').onclick=()=>{
  const filename='花间手帖-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';
- snapshot().toBlob(blob=>{if(!blob){status('图片生成失败，请再试一次');return;}const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);status('已生成当前角度的 PNG 图片');},'image/png');
+ snapshot().toBlob(blob=>{if(!blob){status('图片生成失败，请再试一次');return;}const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=filename;document.body.append(a);a.click();a.remove();countAction('image_exported',false);setTimeout(()=>URL.revokeObjectURL(u),60000);status('已生成当前角度的 PNG 图片');},'image/png');
 };
 function refreshBackdrop(){
  wall.width=canvas.width;wall.height=canvas.height;
