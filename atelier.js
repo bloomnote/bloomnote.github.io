@@ -69,9 +69,9 @@ function unpackGift(fragment){
  if(!/^[A-Za-z0-9_-]{1,20000}$/.test(token))throw new Error('Invalid gift');
  const bytes=Uint8Array.from(atob(token.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
  const values=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
- if(!Array.isArray(values)||(values.length!==4&&values.length!==5)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
+ if(!Array.isArray(values)||![4,5,7].includes(values.length)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
  const params=new URLSearchParams();
- ['flower','stems','move','note','tones'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
+ ['flower','stems','move','note','tones','to','from'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
  return params;
 }
 function packGift(values){
@@ -204,7 +204,7 @@ photo.onpointerup=e=>{
  }
  const tapped=!drag.moved&&e.timeStamp-drag.started<450&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6;
  endDrag(e);
- if(!tapped||!state.card||!$('note').value.trim())return;
+ if(!tapped||!state.card||!hasLetter())return;
  const rect=photo.getBoundingClientRect();
  const x=(e.clientX-rect.left)*canvas.width/rect.width,y=(e.clientY-rect.top)*canvas.height/rect.height;
  if(view.hitsCard(x,y,yaw,pitch,cardStart))openNote();
@@ -215,8 +215,16 @@ const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带
 const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
 const palette={...swatches,blooms:['#f3ebd6','#d1a3a5','#b1a0cb','#e5b849','#adbbdc',...flowers.map(([, , hex])=>'#'+hex)],sprigs:['#9abdd4','#839582','#ab4550','#86a398','#476943','#77856a','#476b4b','#f6f1de','#b6bcb0','#d8c4a0','#c7b98e']};
 $('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
+for(const id of ['to','from']){
+ $(id).value=gift&&state.card?(giftParams.get(id)??'').slice(0,60):'';
+}
+function hasLetter(){return ['to','note','from'].some(id=>$(id).value.trim());}
 $('read-note').onclick=openNote;
 function openNote(){
+ for(const [id,label] of [['to','To'],['from','From']]){
+  const value=$(id).value.trim(),line=$('letter-'+id);
+  line.hidden=!value;line.textContent=value?label+'  '+value:'';
+ }
  $('letter-text').textContent=$('note').value.trim();
  $('letter').style.backgroundColor=palette.card[state.card];
  $('letter').showModal();
@@ -330,7 +338,7 @@ function status(msg){document.querySelector('output').textContent=msg;}
 function finish(done){
  editMode(false);$('move').hidden=done||tab!==0;
  document.querySelector('main').classList.toggle('present',done);
- $('read-note').hidden=!done||!state.card||!$('note').value.trim();
+ $('read-note').hidden=!done||!state.card||!hasLetter();
  $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
@@ -341,7 +349,7 @@ panel();finish(!!gift);$('finish').onclick=()=>finish(true);$('back').onclick=()
 $('reply').onclick=()=>{
  gift=null;
  history.replaceState(null,'',location.pathname+location.search);
- $('note').value='';
+ for(const id of ['to','note','from'])$(id).value='';
  panel();finish(false);front();
 };
 function giftURL(){
@@ -350,7 +358,12 @@ function giftURL(){
  const moves=Object.entries(state.moves||{}).map(([key,v])=>[key,...v].join(':')).join('~');
  const note=state.card?$('note').value.trim():'';
  const url=new URL(location.pathname,location.origin);
- url.hash=packGift([flower,stems,moves,note,...(Object.keys(state.tones||{}).length?[JSON.stringify(state.tones)]:[])]);
+ const fields=[flower,stems,moves,note];
+ const tones=Object.keys(state.tones||{}).length?JSON.stringify(state.tones):'';
+ const to=state.card?$('to').value.trim():'',from=state.card?$('from').value.trim():'';
+ if(to||from)fields.push(tones,to,from);
+ else if(tones)fields.push(tones);
+ url.hash=packGift(fields);
  return url.href;
 }
 $('share').onclick=async()=>{
