@@ -1,6 +1,6 @@
 import {swatches} from './colors.js?v=studio2';
 import {flowers,shades} from './botanicals.js?v=garden2';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=foldlight1';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=bundle1';
 import {prepare,makeView} from './flower-view.js?v=petal1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
@@ -329,14 +329,13 @@ function panel(){
    if(list)b.dataset.kind=kind;
    if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
    b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
-    if(list&&state.stems){
+    if(list){
      const input=$('count-'+kind),removing=b.getAttribute('aria-pressed')==='true';
      if(removing&&Number(input.min)>0){status('至少留一种主花');return;}
-     input.value=removing?0:Math.min(kind===0?2:isBloom(kind)?5:4,Number(input.max));
+     input.value=removing?0:Math.min(isBloom(kind)?2:4,Number(input.max));
      input.dispatchEvent(new Event('change'));return;
     }
-    if(list){if(active&&key==='blooms'&&state[key].length===1){status('至少留一种主花');return;}delete state.moves;state[key]=active?state[key].filter(v=>v!==i):[...state[key],i];}
-    else state[key]=i;
+    state[key]=i;
     startDraft();
     status('');
     if(key==='background')refreshBackdrop();

@@ -179,7 +179,7 @@ export function bouquet(s,framing){
    }
   }
  }
- const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(...flowers.map(([,i])=>i)))-2)*.55):0;
+ const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(0,flowers.length-1))-2)*.55):0;
  const tie=[0,roundRoses?1-.63*.49*Math.sqrt(flowers.length):-1.30-extent*.94,0];
  const bareBand=s.fold===6;
  const stemCount=stems.length;
@@ -210,15 +210,17 @@ export function bouquet(s,framing){
    crownNormal.push(unit([.76*x/crownRadius,1,-.76*y/crownRadius]));
    return [...crownPoint(x,y,height+.045*sin(i*2.1)),1.02+.052*cos(i*3),kind,i];
   }
-  if(i<heads.length)return [...heads[i],kind,i];
-  const j=i-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+4)*.55;
-  return [radius*cos(angle),1.18-.81*radius*sin(angle),.52*radius*sin(angle)-.09*radius,kind===0?.59:.64,kind,i];
+  if(index<heads.length)return [...heads[index],kind,i];
+  const j=index-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+2)*.42;
+  return [radius*cos(angle),1.15-.48*radius*sin(angle),.78*radius*sin(angle),kind===0?.79:.83,kind,i];
  });
  const flowerHeads=[];
  layout.forEach(([x,y,z,r,kind,i],index)=>{
-  const p=place(kind,i,[x,y,z],r*(kind===2?.42:.76));
+  // Gardenias open into broad heads even in the smaller rear slots.
+  if(kind===18){r=.94+.035*cos(i*2.4);layout[index][3]=r;}
+  const p=place(kind,i,[x,y,z],r*(kind===2?.42:kind===18?.64:kind===14?.42:.76));
   [x,y,z]=p;layout[index].splice(0,3,...p);
-  const facing=roundRoses?crownNormal[index]:i>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
+  const facing=roundRoses?crownNormal[index]:index>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
   const start=bareBand?bindingPoint(index):tie;
   if(bareBand)stem([start[0]*1.9,tie[1]-.85-.07*cos(i),start[2]*1.9],start,.026);
   if(kind===2){
@@ -400,8 +402,9 @@ export function bouquet(s,framing){
   }
  }
  owner=null;
- const reach=Math.max(...anchors.slice(0,flowers.length).map((a,i)=>Math.hypot(a.base[0],a.base[2])+.69*layout[i][3]));
- const spreadScale=s.stems?Math.max(.58,reach/1.40,.49+.14*Math.sqrt(fillers.length)):1;
+ // Size the paper around the stem bundle below the heads, where stems converge.
+ const opening=1+.09*(Math.sqrt(flowers.length)-Math.sqrt(heads.length))+.22*Math.max(0,Math.sqrt(flowers.length)-Math.sqrt(12));
+ const spreadScale=s.stems?Math.max(.76,opening,.64+.10*Math.sqrt(fillers.length)):1;
  const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
  const wrapStart=indices.length;
  const papers=paletteColors.paper[s.paper][2];
