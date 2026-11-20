@@ -65,12 +65,14 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
     const broad=.5+.5*facing;
     diffuse=(.40+.60*cone)*(.58*broad+.42*lambert)*(.44+.56*visible);
    }
-   const fill=wrap ? .31 : .54;
-   const strength=wrap ? .94 : .49;
+   // Lift botanical midtones while leaving headroom for white petals.
+   const botanical=j<wrapStart;
+   const fill=wrap ? .31 : botanical ? .67 : .54;
+   const strength=wrap ? .94 : botanical ? .57 : .49;
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
     const lit=colors[i+d]*(fill+strength*diffuse*(1+.22*(tint[d]-1)));
-    vertices[o+3+d]=wrap && lit>.82 ? .82+.16*(1-Math.exp(- (lit-.82)/.16)) : lit;
+    vertices[o+3+d]=(wrap || botanical) && lit>.82 ? .82+.16*(1-Math.exp(- (lit-.82)/.16)) : lit;
    }
 
  }
