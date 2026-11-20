@@ -44,7 +44,8 @@ export function bouquet(s,framing){
 
  const points=[],colors=[],indices=[],anchors=[];
  const ranges=[];let owner=null;
- const original=new Set(stemsFor({...s,stems:null}).map(([k,i])=>k+'-'+i));
+ const recipeStems=stemsFor({...s,stems:null});
+ const original=new Set(recipeStems.map(([k,i])=>k+'-'+i));
  function place(kind,slot,base,radius){
   const key=kind+'-'+slot;owner=key;
   const clearance=p=>anchors.reduce((gap,a)=>Math.min(gap,Math.hypot(...sub(a.base,p))/(a.radius+radius)),Infinity);
@@ -402,14 +403,13 @@ export function bouquet(s,framing){
   }
  }
  owner=null;
- // At the lip the stems have already converged. Follow the bulk of the
- // unmoved stems so one leaning flower cannot open the whole wrapper.
- const reaches=anchors.slice(0,flowers.length).map(a=>Math.hypot(a.base[0],a.base[2])).sort((a,b)=>a-b);
- const cutoff=reaches[Math.floor((reaches.length-1)*.8)];
- const shoulder=reaches.reduce((sum,r)=>sum+Math.min(r,cutoff),0)/reaches.length;
- const bundle=Math.sqrt(flowers.length+.35*fillers.length);
- const waist=.55+.215*bundle;
- const spreadScale=.37+.40*shoulder+.055*bundle;
+ // The preset paper is the reference cut. Size adjustments are relative
+ // to its stem bundle, including the greenery already in that recipe.
+ const recipeFlowers=recipeStems.filter(([kind])=>isBloom(kind)).length;
+ const recipeWeight=recipeFlowers+.35*(recipeStems.length-recipeFlowers);
+ const growth=Math.sqrt(flowers.length+.35*fillers.length)-Math.sqrt(recipeWeight);
+ const waist=Math.max(.70,1+.19*growth);
+ const spreadScale=Math.max(.80,1+.055*growth+.12*Math.max(0,growth-1.4));
  const wrapStart=indices.length;
  const papers=paletteColors.paper[s.paper][2];
  // Each sheet opens from the binding, with creases fanning out from the waist.
@@ -504,7 +504,7 @@ export function bouquet(s,framing){
    const p=foot(u,.04+.09*v);return [p[0]*1.008,p[1],tie[2]+(p[2]-tie[2])*1.008];
   },()=>silk);
  }else{
- sheet(40,5,(u,v)=>{let a=u*TAU,r=.21+(.12+.018*Math.min(bundle,7)+.028*cos(7*a))*v;return [sin(a)*r,-1.32-.76*v+.055*cos(a*3)*v,cos(a)*r];},(u)=>mul(rgb(papers[1]),.90+.09*sin(u*TAU*7)));
+ sheet(40,5,(u,v)=>{let a=u*TAU,r=.19+(.13+.012*Math.max(0,growth)+.035*cos(7*a))*v;return [sin(a)*r,-1.32-.76*v+.055*cos(a*3)*v,cos(a)*r];},(u)=>mul(rgb(papers[1]),.90+.09*sin(u*TAU*7)));
  sheet(32,1,(u,v)=>[.224*sin(TAU*u),-1.39+.15*v,.225*cos(TAU*u)],()=>silk);
  for(const sign of [-1,1]){
   sheet(5,24,(u,v)=>[sign*(.05+.48*sin(PI*v)), -1.33+.18*sin(TAU*v)+.12*sin(PI*v)+(u-.5)*.10,.24+.08*cos(TAU*v)+(u-.5)*.05],u=>mul(silk,.82+.23*u));
@@ -539,7 +539,8 @@ export function bouquet(s,framing){
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }
  let fit=1,middle=.04;
- if(s.stems||flowers.length>6||fillers.length>12){
+ const editedLayout=s.stems&&(s.moves||stems.length!==original.size||stems.some(([k,i])=>!original.has(k+'-'+i)));
+ if(editedLayout||flowers.length>6||fillers.length>12){
   let radius=0;
   for(let i=0;i<points.length;i+=3)radius=Math.max(radius,Math.hypot(points[i],points[i+2]));
   let top=-Infinity,bottom=Infinity;
