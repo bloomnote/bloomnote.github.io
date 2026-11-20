@@ -402,10 +402,14 @@ export function bouquet(s,framing){
   }
  }
  owner=null;
- // Size the paper around the stem bundle below the heads, where stems converge.
- const opening=1+.09*(Math.sqrt(flowers.length)-Math.sqrt(heads.length))+.22*Math.max(0,Math.sqrt(flowers.length)-Math.sqrt(12));
- const spreadScale=s.stems?Math.max(.76,opening,.64+.10*Math.sqrt(fillers.length)):1;
- const waist=s.stems?Math.min(2.9,.75+.075*Math.sqrt(flowers.length+fillers.length*.35)):1;
+ // At the lip the stems have already converged. Follow the bulk of the
+ // unmoved stems so one leaning flower cannot open the whole wrapper.
+ const reaches=anchors.slice(0,flowers.length).map(a=>Math.hypot(a.base[0],a.base[2])).sort((a,b)=>a-b);
+ const cutoff=reaches[Math.floor((reaches.length-1)*.8)];
+ const shoulder=reaches.reduce((sum,r)=>sum+Math.min(r,cutoff),0)/reaches.length;
+ const bundle=Math.sqrt(flowers.length+.35*fillers.length);
+ const waist=.55+.215*bundle;
+ const spreadScale=.37+.40*shoulder+.055*bundle;
  const wrapStart=indices.length;
  const papers=paletteColors.paper[s.paper][2];
  // Each sheet opens from the binding, with creases fanning out from the waist.
@@ -500,7 +504,7 @@ export function bouquet(s,framing){
    const p=foot(u,.04+.09*v);return [p[0]*1.008,p[1],tie[2]+(p[2]-tie[2])*1.008];
   },()=>silk);
  }else{
- sheet(40,5,(u,v)=>{let a=u*TAU,r=.19+.13*v+.035*cos(7*a)*v;return [sin(a)*r,-1.32-.76*v+.055*cos(a*3)*v,cos(a)*r];},(u)=>mul(rgb(papers[1]),.90+.09*sin(u*TAU*7)));
+ sheet(40,5,(u,v)=>{let a=u*TAU,r=.21+(.12+.018*Math.min(bundle,7)+.028*cos(7*a))*v;return [sin(a)*r,-1.32-.76*v+.055*cos(a*3)*v,cos(a)*r];},(u)=>mul(rgb(papers[1]),.90+.09*sin(u*TAU*7)));
  sheet(32,1,(u,v)=>[.224*sin(TAU*u),-1.39+.15*v,.225*cos(TAU*u)],()=>silk);
  for(const sign of [-1,1]){
   sheet(5,24,(u,v)=>[sign*(.05+.48*sin(PI*v)), -1.33+.18*sin(TAU*v)+.12*sin(PI*v)+(u-.5)*.10,.24+.08*cos(TAU*v)+(u-.5)*.05],u=>mul(silk,.82+.23*u));

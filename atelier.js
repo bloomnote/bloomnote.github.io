@@ -1,6 +1,6 @@
 import {swatches} from './colors.js?v=studio2';
 import {flowers,shades} from './botanicals.js?v=garden2';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=bundle1';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=wrapfit2';
 import {prepare,makeView} from './flower-view.js?v=petal1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
