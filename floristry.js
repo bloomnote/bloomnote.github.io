@@ -216,6 +216,7 @@ export function bouquet(s,framing){
   return [radius*cos(angle),1.15-.48*radius*sin(angle),.78*radius*sin(angle),kind===0?.79:.83,kind,i];
  });
  const flowerHeads=[];
+ const rosePointEnd=[];
  layout.forEach(([x,y,z,r,kind,i],index)=>{
   // Gardenias open into broad heads even in the smaller rear slots.
   if(kind===18){r=.94+.035*cos(i*2.4);layout[index][3]=r;}
@@ -245,6 +246,7 @@ export function bouquet(s,framing){
    radius=Math.max(radius,Math.hypot(points[v]-center[0],points[v+1]-center[1],points[v+2]-center[2]));
   }
   flowerHeads.push({center,radius});
+  if(roundRoses)rosePointEnd.push(points.length);
 
  });
  function leaf(a,b,w,shade){
@@ -432,13 +434,32 @@ export function bouquet(s,framing){
   });
  }else if(s.fold===5){
   const baseRadius=roundRoses?standRadius:.21*waist;
-  const lipRadius=roundRoses?crownRadius+.27:1.41*spreadScale;
+  let lipRadius=roundRoses?crownRadius+.27:1.41*spreadScale;
   const lipY=roundRoses?1+crownHeight(1)+.045:.11;
+  // Fit the spiral to the full petal and calyx silhouette at each height.
+  // Use the arranged positions so dragging a single stem keeps the paper fixed.
+  if(roundRoses){
+   let first=0;
+   for(const [i,end] of rosePointEnd.entries()){
+    const delta=sub(anchors[i].p,anchors[i].base);
+    for(let j=first;j<end;j+=3){
+     const v=Math.min(1,(points[j+1]-delta[1]-tie[1]-.055)/(lipY-tie[1]));
+     if(v<=.12)continue;
+     const section=1-(1-v)**2.2;
+     const radius=Math.hypot(points[j]-delta[0],points[j+2]-delta[2]);
+     lipRadius=Math.max(lipRadius,baseRadius+(radius+.06-baseRadius)/section);
+    }
+    first=end;
+   }
+  }
   for(let k=0;k<4;k++){
    const surface=(u,v)=>{
     const angle=k*PI/2+u*1.86+.58*v;
     const crease=sin(PI*u)**2;
-    const radius=baseRadius+(lipRadius-baseRadius)*v+
+    const section=roundRoses?1-(1-v)**2.2:v;
+    const radius=roundRoses
+     ? baseRadius+(lipRadius-baseRadius)*section+lipRadius*(.022*u*v+.023*(1-crease)*sin(PI*v))
+     : baseRadius+(lipRadius-baseRadius)*v+
      lipRadius*(.035*u-.095*crease*sin(PI*v));
     return [radius*sin(angle),tie[1]+(lipY-tie[1])*v+.055*v*sin(PI*u),radius*cos(angle)];
    };
