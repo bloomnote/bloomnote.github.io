@@ -55,7 +55,8 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
    const lambert=Math.max(0,(dx*nx+dy*ny+dz*nz)*(nz<0?-1:1)/(len*distance));
    // Bound the incident light before applying it to each petal's own color.
    const attenuation=1/(1+.025*distance*distance);
-   const key=cone*attenuation*(.18+.82*lambert)*(.24+.76*visible);
+   const incidence=Math.abs((dx*nx+dy*ny+dz*nz)/(len*distance));
+   const key=cone*attenuation*(.15+.85*incidence)*(.16+.84*visible);
    // A wider beam reaches the lower wrapping. Reduce fill so overlapping folds cast shadows.
    const wrap=j>=wrapStart && j<cardStart;
    let diffuse=key;
@@ -67,11 +68,12 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
    }
    // Lift botanical midtones while leaving headroom for white petals.
    const botanical=j<wrapStart;
-   const fill=wrap ? .31 : botanical ? .67 : .54;
-   const strength=wrap ? .94 : botanical ? .57 : .49;
+   const fill=wrap ? .34 : botanical ? .59 : .54;
+   const strength=wrap ? 1.12 : botanical ? 1.19 : .49;
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
-    const lit=colors[i+d]*(fill+strength*diffuse*(1+.22*(tint[d]-1)));
+    const reflection=(wrap?.085:botanical?.095:0)*diffuse*diffuse;
+    const lit=colors[i+d]*fill+(colors[i+d]*strength*diffuse+reflection)*(1+.78*(tint[d]-1));
     vertices[o+3+d]=(wrap || botanical) && lit>.82 ? .82+.16*(1-Math.exp(- (lit-.82)/.16)) : lit;
    }
 

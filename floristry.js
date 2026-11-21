@@ -196,7 +196,7 @@ export function bouquet(s,framing){
  const tulipHeads=[[-.66,.92,.30,.77],[.46,1.15,.31,.82],[-.23,1.65,-.03,.76],[.20,.58,.52,.73],[.73,1.66,-.28,.63]];
  const heads=single===1?roseHeads:single===2?tulipHeads:lilyStudy?[[-.28,.44,.47,.97],[.40,1.17,.29,.88]]:[[-.35,.36,.83,.94],[.52,1.02,.30,.82],[-.54,1.48,-.12,.73],[.78,.53,-.49,.60],[-.88,.68,-.38,.60],[.12,1.43,-.60,.60]];
  // Place equal-sized heads across the area of a shallow spherical cap.
- const crownRadius=.49*Math.sqrt(flowers.length);
+ const crownRadius=.445*Math.sqrt(flowers.length);
  const crownPoint=(x,y,depth)=>[x,1+depth,-y];
  const crownHeight=f=>crownRadius*(.28-.38*f)-.10;
  const crownNormal=[];
@@ -205,11 +205,11 @@ export function bouquet(s,framing){
    // Compress the outer spiral to keep neighbouring petals in contact on the slope.
    const fraction=(index+.5)/flowers.length;
    const angle=index*2.399963+.18;
-   const radius=crownRadius*Math.sqrt(fraction)*(1.08-.08*fraction);
+   const radius=crownRadius*Math.sqrt(fraction)*(1.035-.035*fraction);
    const x=radius*cos(angle),y=radius*sin(angle);
    const height=crownHeight((radius/crownRadius)**2);
    crownNormal.push(unit([.76*x/crownRadius,1,-.76*y/crownRadius]));
-   return [...crownPoint(x,y,height+.045*sin(i*2.1)),1.02+.052*cos(i*3),kind,i];
+   return [...crownPoint(x,y,height+.045*sin(i*2.1)),1.05+.032*cos(i*3),kind,i];
   }
   if(index<heads.length)return [...heads[index],kind,i];
   const j=index-heads.length,angle=j*2.39996+.72,radius=Math.sqrt(j+2)*.42;
@@ -232,8 +232,10 @@ export function bouquet(s,framing){
     stem(previous,next,.026,0x687e53);previous=next;
    }
   }else if(roundRoses&&!bareBand){
-   const anchor=[x*.29,tie[1],z*.29];
-   stem(anchor,p,.042);
+   const calyx=add(p,mul(unit(facing),-.50*r));
+   const anchor=[x*.13,tie[1],z*.13];
+   stem(anchor,calyx,.032);
+   stem(calyx,p,.032);
   }else stem(start,p,.025);
   const petalStart=points.length;
   bloom(p,r,facing,kind,.75+i*1.92,lilyStudy&&i===1?.76:1);
@@ -431,7 +433,7 @@ export function bouquet(s,framing){
  }else if(s.fold===5){
   const baseRadius=roundRoses?standRadius:.21*waist;
   const lipRadius=roundRoses?crownRadius+.27:1.41*spreadScale;
-  const lipY=roundRoses?1+crownHeight(1)-.16:.11;
+  const lipY=roundRoses?1+crownHeight(1)+.045:.11;
   for(let k=0;k<4;k++){
    const surface=(u,v)=>{
     const angle=k*PI/2+u*1.86+.58*v;
