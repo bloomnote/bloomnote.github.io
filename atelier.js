@@ -1,7 +1,7 @@
 import {swatches} from './colors.js?v=studio2';
 import {flowers,shades} from './botanicals.js?v=garden2';
 import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=spiralfit1';
-import {prepare,makeView} from './flower-view.js?v=softtint1';
+import {prepare,makeView} from './flower-view.js?v=petallight2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;

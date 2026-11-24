@@ -35,6 +35,9 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
  const position=direction===0?[-.42,.86,.65]:lightPositions[direction],length=Math.hypot(...position);
  const axis=position.map(component=>component/length);
  const tint=lampColors[lamp];
+ // Keep lamp changes at comparable brightness while retaining their distinct hues.
+ const lampLuma=.2126*tint[0]+.7152*tint[1]+.0722*tint[2];
+ const chroma=tint.map(channel=>(channel-lampLuma));
  const source=direction===0?[-1.65,4,3.15]:position.map(v=>v*4);
  const [sx,sy,sz]=source,aimLength=Math.hypot(sx,sy-1,sz-.2);
  const exposure=windowShadow(points,indices,axis);
@@ -71,12 +74,12 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
    const fill=wrap ? .34 : botanical ? .59 : .54;
    const strength=wrap ? 1.02 : botanical ? 1.08 : .49;
    const reflection=(wrap?.055:botanical?.065:0)*diffuse*diffuse;
-   const tintWeight=.22*diffuse;
+   const tintWeight=.68*Math.min(1,diffuse/.55);
    let peak=0;
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
     const base=colors[i+d];
-    const lit=base*fill+(base*strength*diffuse+reflection)*(1+tintWeight*(tint[d]-1));
+    const lit=base*fill+(base*strength*diffuse+reflection)*(1+tintWeight*chroma[d]);
     vertices[o+3+d]=lit;
     peak=Math.max(peak,lit);
    }
