@@ -69,12 +69,21 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
    // Lift botanical midtones while leaving headroom for white petals.
    const botanical=j<wrapStart;
    const fill=wrap ? .34 : botanical ? .59 : .54;
-   const strength=wrap ? 1.12 : botanical ? 1.19 : .49;
+   const strength=wrap ? 1.02 : botanical ? 1.08 : .49;
+   const reflection=(wrap?.055:botanical?.065:0)*diffuse*diffuse;
+   const tintWeight=.22*diffuse;
+   let peak=0;
    for(let d=0;d<3;d++){
     vertices[o+d]=points[i+d];
-    const reflection=(wrap?.085:botanical?.095:0)*diffuse*diffuse;
-    const lit=colors[i+d]*fill+(colors[i+d]*strength*diffuse+reflection)*(1+.78*(tint[d]-1));
-    vertices[o+3+d]=(wrap || botanical) && lit>.82 ? .82+.16*(1-Math.exp(- (lit-.82)/.16)) : lit;
+    const base=colors[i+d];
+    const lit=base*fill+(base*strength*diffuse+reflection)*(1+tintWeight*(tint[d]-1));
+    vertices[o+3+d]=lit;
+    peak=Math.max(peak,lit);
+   }
+   // Roll off all three channels together to preserve pigment in bright folds.
+   if((wrap||botanical)&&peak>.82){
+    const gain=(.82+.15*(1-Math.exp(- (peak-.82)/.15)))/peak;
+    for(let d=0;d<3;d++)vertices[o+3+d]*=gain;
    }
 
  }
