@@ -66,7 +66,15 @@ const recipes=[
  {id:'jasmine-spathe',name:'茉莉与白掌',state:{...initial,blooms:[bloomIds.indexOf(31),bloomIds.indexOf(34)],sprigs:[3],fold:6,paper:13,ribbon:15,
    stems:[[31,0],[34,1],[31,2],[31,3],[8,12]]}},
  {id:'apricot-oncidium',name:'杏桃洋牡丹与文心兰',state:{...initial,blooms:[bloomIds.indexOf(32),bloomIds.indexOf(33)],sprigs:[],fold:1,paper:12,ribbon:12,
-   stems:[[32,0],[33,1],[32,2],[33,3],[32,4]],moves:{'33-3':[-.14,.65,.94],'32-4':[.27,.20,.60]},tones:{32:'杏桃',33:'黄油黄'}}}
+   stems:[[32,0],[33,1],[32,2],[33,3],[32,4]],moves:{'33-3':[-.14,.65,.94],'32-4':[.27,.20,.60]},tones:{32:'杏桃',33:'黄油黄'}}},
+ {id:'rowan-for-liora',name:'迟来的译文',scene:true,
+  state:{...initial,blooms:[bloomIds.indexOf(11),bloomIds.indexOf(14),bloomIds.indexOf(31),bloomIds.indexOf(32),bloomIds.indexOf(36),bloomIds.indexOf(37)],sprigs:[],
+   fold:0,paper:15,ribbon:13,card:10,background:9,direction:0,lamp:0,ribbonPrint:'ROWAN · LIORA',
+   stems:[[36,0],[37,1],[11,2],[32,3],[31,4],[14,5],[36,6],[37,7],[31,8]],
+   moves:{'36-0':[-.18,.20,-.10],'37-1':[.16,.14,.06],'11-2':[-.04,-.22,.34],'32-3':[.10,-.18,.24],'31-4':[-.05,-.16,.18],'14-5':[.10,.02,.30],'36-6':[-.14,.10,.12],'37-7':[.11,.08,.08],'31-8':[.06,-.12,.18]},
+   tones:{32:'奶白'}},
+  letter:{note:'有些告白，并没有迟到。它只是先藏在另一种语言里，等我们走过春花与秋果，才终于被彼此读懂。',cardPrint:'原来那时，答案已经在名字里。'},
+  meaning:'花楸从春花走到秋果，像一句早已说出的爱，隔着语言与时间，终于有了译文。'}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 function unpackGift(fragment){
@@ -99,7 +107,7 @@ if(gift){
  state.ribbonPrint=(giftParams.get('ribbonPrint')||'').slice(0,24);
 }
 $('ribbon-print').value=state.ribbonPrint||'';
-$('card-print').value=gift&&state.card?(giftParams.get('cardPrint')||'').slice(0,60):'';
+$('card-print').value=gift&&state.card?(giftParams.get('cardPrint')||'').slice(0,60):(chosen?.letter?.cardPrint||'');
 $('ribbon-print').onchange=()=>{startDraft();state.ribbonPrint=$('ribbon-print').value.trim();update();};
 $('card-print').oninput=()=>startDraft();
 // Send fixed labels only. Never derive an analytics field from the gift or URL.
@@ -241,9 +249,9 @@ function tick(t){const dt=t-last;if(dt>(view.accelerated?25:85)){last=t;if(rotat
 const steps=[['花材',['blooms','sprigs']],['包装',['fold','paper']],['丝带',['ribbon']],['小卡',['card']],['背景与光',['background','direction','lamp']]];
 const labels={direction:'光从哪里来',lamp:'灯光颜色',background:'送出时的背景',blooms:'主花 · 可混搭',sprigs:'配花与枝叶',fold:'折纸方式',paper:'纸色',ribbon:'缎带颜色',card:'卡片配色'};
 const palette={...swatches,blooms:['#f3ebd6','#d1a3a5','#b1a0cb','#e5b849','#adbbdc',...flowers.map(([, , hex])=>'#'+hex)],sprigs:['#9abdd4','#839582','#ab4550','#86a398','#476943','#77856a','#476b4b','#f6f1de','#b6bcb0','#d8c4a0','#c7b98e']};
-$('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):'';
+$('note').value=gift&&state.card?(giftParams.get('note')??'').slice(0,400):(chosen?.letter?.note||'');
 for(const id of ['to','from']){
- $(id).value=gift&&state.card?(giftParams.get(id)??'').slice(0,60):'';
+ $(id).value=gift&&state.card?(giftParams.get(id)??'').slice(0,60):(chosen?.letter?.[id]||'');
 }
 for(const id of ['to','from','note']) $(id).addEventListener('input',startDraft);
 function hasLetter(){return ['to','note','from','card-print'].some(id=>$(id).value.trim());}
@@ -351,7 +359,8 @@ function refreshCounts(){
 function matchesRecipe(recipe){
  const selected=recipe.state;
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
- return same(state.moves||{},selected.moves||{}) && ['blooms','sprigs','fold','paper','ribbon','card'].every(k=>same(state[k],selected[k]))
+ const keys=['blooms','sprigs','fold','paper','ribbon','card',...(recipe.scene?['background','direction','lamp','ribbonPrint']:[])];
+ return same(state.moves||{},selected.moves||{}) && keys.every(k=>same(state[k],selected[k]))
   && same(state.stems,selected.stems) && same(state.tones||{},selected.tones||{});
 }
 function refreshRecipeButtons(){
@@ -365,7 +374,16 @@ function panel(){
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(matchesRecipe(recipe)));
-  button.onclick=()=>{startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);lastMeaningKind=undefined;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.onclick=()=>{
+   startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;delete state.ribbonPrint;editMode(false);lastMeaningKind=undefined;
+   const scene=recipe.scene?{}:{background:state.background,direction:state.direction,lamp:state.lamp};
+   Object.assign(state,structuredClone(recipe.state),scene);
+   $('ribbon-print').value=state.ribbonPrint||'';
+   if(recipe.letter && !['to','note','from','card-print'].some(id=>$(id).value.trim())){
+    for(const id of ['to','note','from','card-print'])$(id).value=recipe.letter[id]||'';
+   }
+   front();update();panel();status('');
+  };
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
@@ -424,6 +442,11 @@ function finish(done){
    const name=document.createElement('dt'),line=document.createElement('dd');
    name.textContent=stemNames[kind];line.textContent=flowerMeanings[kind];
    list.append(name,line);
+  }
+  const edition=recipes.find(recipe=>recipe.meaning&&matchesRecipe(recipe));
+  if(edition){
+   const name=document.createElement('dt'),line=document.createElement('dd');
+   name.textContent='束意 · '+edition.name;line.textContent=edition.meaning;list.append(name,line);
   }
  }
  status('');$('url').hidden=true;if(done)front();
