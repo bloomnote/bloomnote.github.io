@@ -1,5 +1,7 @@
+import {printRibbon} from './ribbon-print.js';
+import {seasonalBotanical} from './seasonal-botanicals.js';
 import {colors as paletteColors} from './colors.js';
-import {flowers as flowerCatalog,foliage,botanical,shades} from './botanicals.js?v=garden2';
+import {flowers as flowerCatalog,foliage,botanical,shades} from './botanicals.js?v=materials1';
 // Bouquet coordinates are in florist's view: x right, y up, z toward the viewer.
 const {sin,cos,PI,pow}=Math, TAU=PI*2;
 const add=(a,b)=>a.map((v,i)=>v+b[i]);
@@ -85,7 +87,8 @@ export function bouquet(s,framing){
   const petalColor=(base,v)=>selected?mul(selected,.57+.43*v):base;
   if(kind>=9){
    const [,form,hex]=flowerCatalog[kind-9];
-   botanical(form,{P,sheet,stem,bead,tint:selected||rgb(parseInt(hex,16)),phase,dense,purpleEdge:s.tones?.[kind]==='白底紫边'});
+   const context={P,sheet,stem,bead,size,tint:selected||rgb(parseInt(hex,16)),phase,dense,purpleEdge:s.tones?.[kind]==='白底紫边'};
+   if(!seasonalBotanical(form,context))botanical(form,context);
    return;
   }
   const lily=kind===0,rose=kind===1,star=kind===3;
@@ -220,9 +223,22 @@ export function bouquet(s,framing){
  layout.forEach(([x,y,z,r,kind,i],index)=>{
   // Gardenias open into broad heads even in the smaller rear slots.
   if(kind===18){r=.94+.035*cos(i*2.4);layout[index][3]=r;}
-  const p=place(kind,i,[x,y,z],r*(kind===2?.42:kind===18?.64:kind===14?.42:.76));
+  const form=flowerCatalog[kind-9]?.[1];
+  const seasonalRadius={jasmine:.53,ranunculus:.51,oncidium:.66,spathiphyllum:.59,
+   amaranth:.57,rowanSpring:.66,rowanAutumn:.66}[form];
+  const rowan=form==='rowanSpring'||form==='rowanAutumn';
+  if(rowan)y+=.85*r;
+  if(form==='amaranth'){
+   // The tassels hang towards the rim, following the outward lean of this stem.
+   const horizontal=Math.hypot(x,z)||1;
+   x+=.20*x/horizontal;z+=.20*z/horizontal;y+=.30*r;
+  }
+  const clearanceRadius=seasonalRadius??(kind===2?.42:kind===18?.64:kind===14?.42:.76);
+  const p=place(kind,i,[x,y,z],r*clearanceRadius);
   [x,y,z]=p;layout[index].splice(0,3,...p);
-  const facing=roundRoses?crownNormal[index]:index>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
+  const uprightSpray=['amaranth','oncidium','spathiphyllum','rowanSpring','rowanAutumn'].includes(form);
+  // Cut ranunculus heads cup upward even on the rear side of a bouquet.
+  const facing=form==='ranunculus'?[x*.60,.83+.18*cos(i*1.6),.64+.34*z]:uprightSpray?[(rowan?anchors.at(-1).base[0]:x)*.40,.17,.81+.09*cos(i)]:roundRoses?crownNormal[index]:index>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
   const start=bareBand?bindingPoint(index):tie;
   if(bareBand)stem([start[0]*1.9,tie[1]-.85-.07*cos(i),start[2]*1.9],start,.026);
   if(kind===2){
@@ -510,7 +526,9 @@ export function bouquet(s,framing){
  const handleStart=points.length;
  const silkColor=parseInt(paletteColors.ribbon[s.ribbon][1].slice(1),16),silk=rgb(silkColor);
  if(bareBand){
-  sheet(48,2,(u,v)=>[(bandRadius+.005)*sin(TAU*u),tie[1]+(v-.5)*.03,(bandRadius+.005)*cos(TAU*u)],()=>silk);
+  const edge=(u,v)=>[(bandRadius+.005)*sin(TAU*u),tie[1]+(v-.5)*.03,(bandRadius+.005)*cos(TAU*u)];
+  sheet(48,2,edge,()=>silk);
+  printRibbon(s.ribbonPrint,(u,v)=>edge(u-.5,v),sheet,silk,true);
   for(const sign of [-1,1]){
    sheet(4,14,(u,v)=>[sign*.11*sin(PI*v),tie[1]+.04*sin(TAU*v)+.022*(u-.5),bandRadius+.015+.02*sin(PI*v)],()=>silk);
    sheet(3,8,(u,v)=>[sign*(.095*v+.018*u),tie[1]-.16*v,bandRadius+.02+.018*v],()=>silk);
@@ -523,15 +541,19 @@ export function bouquet(s,framing){
   };
   sheet(64,6,foot,(u,v)=>mul(rgb(papers[0]),.85+.08*cos(13*TAU*u)+.06*v));
   sheet(64,1,(u,v)=>mix([0,tie[1]-height,tie[2]],foot(u,1),v),()=>rgb(papers[0]));
-  sheet(64,1,(u,v)=>{
+  const edge=(u,v)=>{
    const p=foot(u,.04+.09*v);return [p[0]*1.008,p[1],tie[2]+(p[2]-tie[2])*1.008];
-  },()=>silk);
+  };
+  sheet(64,1,edge,()=>silk);
+  printRibbon(s.ribbonPrint,(u,v)=>edge(u+.25,1-v),sheet,silk,true);
  }else{
  sheet(40,5,(u,v)=>{let a=u*TAU,r=.19+(.13+.012*Math.max(0,growth)+.035*cos(7*a))*v;return [sin(a)*r,-1.32-.76*v+.055*cos(a*3)*v,cos(a)*r];},(u)=>mul(rgb(papers[1]),.90+.09*sin(u*TAU*7)));
  sheet(32,1,(u,v)=>[.224*sin(TAU*u),-1.39+.15*v,.225*cos(TAU*u)],()=>silk);
  for(const sign of [-1,1]){
   sheet(5,24,(u,v)=>[sign*(.05+.48*sin(PI*v)), -1.33+.18*sin(TAU*v)+.12*sin(PI*v)+(u-.5)*.10,.24+.08*cos(TAU*v)+(u-.5)*.05],u=>mul(silk,.82+.23*u));
-  sheet(4,18,(u,v)=>[sign*(.05+.31*v+.13*sin(v*PI*1.4))+(u-.5)*.105,-1.36-v*(sign===1?.92:.75)+.06*u*v,.24+.16*sin(PI*v)+.055*u],u=>mul(silk,.8+.24*u));
+  const tail=(u,v)=>[sign*(.05+.31*v+.13*sin(v*PI*1.4))+(u-.5)*.105,-1.36-v*(sign===1?.92:.75)+.06*u*v,.24+.16*sin(PI*v)+.055*u];
+  sheet(4,18,tail,u=>mul(silk,.8+.24*u));
+  if(sign===1)printRibbon(s.ribbonPrint,tail,sheet,silk);
  }
  bead([0,-1.32,.25],[.115,.09,.076],silkColor);
  for(let i=handleStart;i<points.length;i+=3){points[i]*=waist;points[i+1]=tie[1]+(points[i+1]+1.30)*(1+.30*extent);points[i+2]=points[i+2]*waist+tie[2];}

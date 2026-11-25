@@ -1,7 +1,8 @@
-import {swatches} from './colors.js?v=studio2';
-import {flowers,shades} from './botanicals.js?v=garden2';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=spiralfit1';
-import {prepare,makeView} from './flower-view.js?v=petallight2';
+import {flowerMeanings,shadesFor} from './flower-notes.js';
+import {swatches,cardInk} from './colors.js?v=materials1';
+import {flowers,shades} from './botanicals.js?v=materials1';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=materials1';
+import {prepare,makeView} from './flower-view.js?v=materials1';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
@@ -23,14 +24,15 @@ function decode(hash,params){
  if(raw!==null){
   const tokens=raw.split('.');
   if(tokens.length>128)return null;
-  const seen=new Set(),counts=Array(47).fill(0),stems=[];
+  const seen=new Set(),counts={},stems=[];
   for(const token of tokens){
    const parsed=/^(?:([0-8])|(\d{1,2}):)([a-z0-9]{1,2})$/.exec(token);
    if(!parsed)return null;
    const kind=Number(parsed[1]??parsed[2]),slot=parseInt(parsed[3],36);
    if(!Object.hasOwn(stemNames,kind))return null;
    const key=(isBloom(kind)?'flower':'sprig')+slot;
-   if(slot>=128||seen.has(key)||++counts[kind]>99)return null;
+   counts[kind]=(counts[kind]??0)+1;
+   if(slot>=128||seen.has(key)||counts[kind]>99)return null;
    seen.add(key);stems.push([kind,slot]);
   }
   if(!stems.some(([kind])=>isBloom(kind)))return null;
@@ -60,7 +62,11 @@ const recipes=[
  {id:'tulip',name:'亚麻紫郁金香',state:{...initial,blooms:[2],sprigs:[],fold:2,paper:2,ribbon:2}},
  {id:'sunflower',name:'暖金向日葵',state:{...initial,blooms:[3],sprigs:[3],fold:3,paper:4,ribbon:4}},
  {id:'hydrangea',name:'海盐蓝绣球',state:{...initial,blooms:[4],sprigs:[0],fold:4,paper:5,ribbon:3}},
- {id:'berries',name:'红果与烟粉玫瑰',state:{...initial,blooms:[1],sprigs:[2,3],fold:2,paper:4,ribbon:4}}
+ {id:'berries',name:'红果与烟粉玫瑰',state:{...initial,blooms:[1],sprigs:[2,3],fold:2,paper:4,ribbon:4}},
+ {id:'jasmine-spathe',name:'茉莉与白掌',state:{...initial,blooms:[bloomIds.indexOf(31),bloomIds.indexOf(34)],sprigs:[3],fold:6,paper:13,ribbon:15,
+   stems:[[31,0],[34,1],[31,2],[31,3],[8,12]]}},
+ {id:'apricot-oncidium',name:'杏桃洋牡丹与文心兰',state:{...initial,blooms:[bloomIds.indexOf(32),bloomIds.indexOf(33)],sprigs:[],fold:1,paper:12,ribbon:12,
+   stems:[[32,0],[33,1],[32,2],[33,3],[32,4]],moves:{'33-3':[-.14,.65,.94],'32-4':[.27,.20,.60]},tones:{32:'杏桃',33:'黄油黄'}}}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 function unpackGift(fragment){
@@ -69,9 +75,9 @@ function unpackGift(fragment){
  if(!/^[A-Za-z0-9_-]{1,20000}$/.test(token))throw new Error('Invalid gift');
  const bytes=Uint8Array.from(atob(token.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
  const values=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
- if(!Array.isArray(values)||![4,5,7].includes(values.length)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
+ if(!Array.isArray(values)||![4,5,7,9].includes(values.length)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
  const params=new URLSearchParams();
- ['flower','stems','move','note','tones','to','from'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
+ ['flower','stems','move','note','tones','to','from','cardPrint','ribbonPrint'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
  return params;
 }
 function packGift(values){
@@ -89,6 +95,13 @@ try{
  throw error;
 }
 const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
+if(gift){
+ state.ribbonPrint=(giftParams.get('ribbonPrint')||'').slice(0,24);
+}
+$('ribbon-print').value=state.ribbonPrint||'';
+$('card-print').value=gift&&state.card?(giftParams.get('cardPrint')||'').slice(0,60):'';
+$('ribbon-print').onchange=()=>{startDraft();state.ribbonPrint=$('ribbon-print').value.trim();update();};
+$('card-print').oninput=()=>startDraft();
 // Send fixed labels only. Never derive an analytics field from the gift or URL.
 const recorded = new Set();
 let returnDraft = false;
@@ -233,7 +246,7 @@ for(const id of ['to','from']){
  $(id).value=gift&&state.card?(giftParams.get(id)??'').slice(0,60):'';
 }
 for(const id of ['to','from','note']) $(id).addEventListener('input',startDraft);
-function hasLetter(){return ['to','note','from'].some(id=>$(id).value.trim());}
+function hasLetter(){return ['to','note','from','card-print'].some(id=>$(id).value.trim());}
 $('read-note').onclick=openNote;
 function openNote(){
  for(const [id,label] of [['to','To'],['from','From']]){
@@ -242,8 +255,28 @@ function openNote(){
  }
  $('letter-text').textContent=$('note').value.trim();
  $('letter').style.backgroundColor=palette.card[state.card];
+ $('letter').style.color=cardInk(palette.card[state.card]);
+ $('letter-face').hidden=false;
+ $('letter-reverse').hidden=true;
+ $('letter-reverse').textContent=$('card-print').value.trim();
+ const flip=$('flip-card');
+ flip.hidden=!$('letter-reverse').textContent;
+ flip.textContent='看背面';
+ flip.onclick=()=>{
+  const reverse=$('letter-reverse').hidden;
+  $('letter-face').hidden=reverse;
+  $('letter-reverse').hidden=!reverse;
+  flip.textContent=reverse?'回到正面':'看背面';
+ };
  $('letter').showModal();
 };
+let lastMeaningKind;
+function showFlowerMeaning(kind){
+ const line=$('flower-meaning');
+ lastMeaningKind=kind;
+ line.hidden=tab!==0||kind==null;
+ line.textContent=kind==null?'':'花意 · '+stemNames[kind]+'　'+flowerMeanings[kind];
+}
 function quantityControl(kind,name){
  const group=document.createElement('div');group.className='quantity';
  const label=document.createElement('label'),input=document.createElement('input');
@@ -272,8 +305,10 @@ function quantityControl(kind,name){
     next.push([kind,slot]);occupied.add(slot++);
    }
   }
-  startDraft();state.stems=next;update();refreshCounts();status('');
-  for(const b of $('recipes').children)b.setAttribute('aria-pressed','false');
+  startDraft();state.stems=next;
+  showFlowerMeaning(value>0?kind:next[0]?.[0]);
+  update();refreshCounts();status('');
+  refreshRecipeButtons();
  }
  minus.className='minus';plus.className='plus';
  minus.onclick=()=>change(Number(input.value)-1);plus.onclick=()=>change(Number(input.value)+1);
@@ -288,14 +323,16 @@ function renderTones(){
  const active=[...new Set(stemsFor(state).map(([id])=>id).filter(isBloom))];
  area.replaceChildren(...active.map(id=>{
   const label=document.createElement('label'),select=document.createElement('select');
-  label.append('花色 ');
+  label.title=stemNames[id];
+  label.append(active.length>1?stemNames[id]+' · 花色 ':'花色 ');
   select.setAttribute('aria-label',stemNames[id]+'的花色');
-  for(const name of ['原色',...Object.keys(shades).filter(name=>name!=='白底紫边'||id===12)])select.add(new Option(name,name));
+  for(const name of ['原色',...shadesFor(id,shades)])select.add(new Option(name,name));
   select.value=state.tones?.[id]||'原色';
-  select.onchange=()=>{startDraft();
+  select.disabled=select.length===1;
+  select.onchange=()=>{startDraft();showFlowerMeaning(id);
    state.tones??={};
    if(select.value==='原色')delete state.tones[id];else state.tones[id]=select.value;
-   update();
+   update();refreshRecipeButtons();
   };
   label.append(select);return label;
  }));
@@ -311,24 +348,44 @@ function refreshCounts(){
   input.nextElementSibling.disabled=n===Number(input.max);
  }
 }
+function matchesRecipe(recipe){
+ const selected=recipe.state;
+ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ return same(state.moves||{},selected.moves||{}) && ['blooms','sprigs','fold','paper','ribbon','card'].every(k=>same(state[k],selected[k]))
+  && same(state.stems,selected.stems) && same(state.tones||{},selected.tones||{});
+}
+function refreshRecipeButtons(){
+ Array.from($('recipes').children).forEach((button,i)=>button.setAttribute('aria-pressed',String(matchesRecipe(recipes[i]))));
+}
 function panel(){
  if(tab!==0)editMode(false);
  $('move').hidden=tab!==0||!!gift;
+ $('ribbon-field').hidden=tab!==2;
  $('note-field').hidden=tab!==3||!state.card;
  $('recipes').replaceChildren(...recipes.map(recipe=>{
   const button=document.createElement('button');button.textContent=recipe.name;
-  button.setAttribute('aria-pressed',String(!state.stems&&Object.keys(recipe.state).filter(k=>!['background','direction','lamp'].includes(k)).every(k=>String(state[k])===String(recipe.state[k]))));
-  button.onclick=()=>{startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
+  button.setAttribute('aria-pressed',String(matchesRecipe(recipe)));
+  button.onclick=()=>{startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;editMode(false);lastMeaningKind=undefined;Object.assign(state,structuredClone(recipe.state),{background:state.background,direction:state.direction,lamp:state.lamp});front();update();panel();status('');};
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
  $('picker').replaceChildren(...steps[tab][1].map(key=>{
   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
+  let rowanGroup;
   options[key].forEach((name,i)=>{
    const b=document.createElement('button'),list=Array.isArray(state[key]),kind=key==='sprigs'?sprigIds[i]:bloomIds[i],active=list?stemsFor(state).some(([k])=>k===kind):state[key]===i;
    if(list)b.dataset.kind=kind;
    if(palette[key]?.[i]){const swatch=document.createElement('i');swatch.className='sample';swatch.style.setProperty('--swatch',palette[key][i]);b.append(swatch);}
-   b.append(name);b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
+   const rowanForm=key==='blooms'&&(kind===36||kind===37);
+   if(rowanForm&&!rowanGroup){
+    rowanGroup=document.createElement('span');
+    rowanGroup.className='rowan-forms';
+    rowanGroup.setAttribute('role','group');rowanGroup.setAttribute('aria-label','花楸形态，可同时选择');
+    const title=document.createElement('span');title.textContent='花楸';rowanGroup.append(title);row.append(rowanGroup);
+   }
+   b.append(rowanForm?(kind===36?'春花':'秋果'):name);
+   if(rowanForm)b.setAttribute('aria-label',name);
+   b.setAttribute('aria-pressed',String(active));b.onclick=()=>{
     if(list){
      const input=$('count-'+kind),removing=b.getAttribute('aria-pressed')==='true';
      if(removing&&Number(input.min)>0){status('至少留一种主花');return;}
@@ -342,11 +399,12 @@ function panel(){
     else if(key==='direction'||key==='lamp'){view.setMesh(prepare(geometry,state.direction,state.lamp));draw();}
     else update();
     panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
-   };row.append(b);
+   };(rowanForm?rowanGroup:row).append(b);
   });field.append(legend,row);return field;
  }));
  $('quantities').hidden=tab!==0;
  if(tab===0)$('counters').replaceChildren(...[...bloomIds,...sprigIds].map(k=>quantityControl(k,stemNames[k])));
+ showFlowerMeaning(lastMeaningKind??stemsFor(state)[0]?.[0]);
  refreshCounts();
 }
 function status(msg){document.querySelector('output').textContent=msg;}
@@ -357,7 +415,17 @@ function finish(done){
  $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
- $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;return n?n+(isBloom(i)?' 朵':' 枝')+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;const unit=isBloom(i)&&![31,33,35,36,37].includes(i)?' 朵':' 枝';return n?n+unit+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ const meanings=$('meanings');meanings.open=false;
+ const list=meanings.querySelector('dl');
+ list.replaceChildren();
+ if(done){
+  for(const kind of new Set(stemsFor(state).map(([kind])=>kind))){
+   const name=document.createElement('dt'),line=document.createElement('dd');
+   name.textContent=stemNames[kind];line.textContent=flowerMeanings[kind];
+   list.append(name,line);
+  }
+ }
  status('');$('url').hidden=true;if(done)front();
 }
 panel();finish(!!gift);
@@ -367,7 +435,8 @@ $('finish').onclick=()=>{finish(true);startDraft();countAction('bouquet_complete
 $('reply').onclick=()=>{
  countAction('reply_started');returnDraft=true;gift=null;
  history.replaceState(null,'',location.pathname+location.search);
- for(const id of ['to','note','from'])$(id).value='';
+ for(const id of ['to','note','from','card-print','ribbon-print'])$(id).value='';
+ delete state.ribbonPrint;update();
  panel();finish(false);front();
 };
 function giftURL(){
@@ -379,7 +448,9 @@ function giftURL(){
  const fields=[flower,stems,moves,note];
  const tones=Object.keys(state.tones||{}).length?JSON.stringify(state.tones):'';
  const to=state.card?$('to').value.trim():'',from=state.card?$('from').value.trim():'';
- if(to||from)fields.push(tones,to,from);
+ const cardPrint=state.card?$('card-print').value.trim():'',ribbonPrint=state.ribbonPrint||'';
+ if(cardPrint||ribbonPrint)fields.push(tones,to,from,cardPrint,ribbonPrint);
+ else if(to||from)fields.push(tones,to,from);
  else if(tones)fields.push(tones);
  url.hash=packGift(fields);
  return url.href;

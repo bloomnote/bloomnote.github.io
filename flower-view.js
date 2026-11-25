@@ -1,4 +1,4 @@
-import {colors} from './colors.js?v=studio2';
+import {colors} from './colors.js?v=materials1';
 // Bake broad window shadows once per arrangement, shared by GPU and CPU previews.
 function windowShadow(points,indices,[lx,ly,lz]){
  const horizontal=Math.hypot(lx,lz),rightX=lz/horizontal,rightZ=-lx/horizontal;

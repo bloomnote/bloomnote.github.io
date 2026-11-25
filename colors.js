@@ -13,6 +13,10 @@ export const colors = {
     ["烟粉", "#ce9fa6", [0xce9fa6, 0xe1bec2, 0xf1dcd6]],
     ["暖咖", "#92735c", [0x92735c, 0xb69b81, 0xdfcbb2]],
     ["银灰", "#a5a8ab", [0xa5a8ab, 0xc3c6c9, 0xe3e2dd]],
+    ["黄油奶油", "#ead69c", [0xead69c, 0xf1e3bb, 0xf6edcf]],
+    ["雾霾蓝", "#859aaa", [0x859aaa, 0xb0bdc6, 0xd7dad6]],
+    ["赤陶棕", "#ac7058", [0xac7058, 0xc79479, 0xddbfa3]],
+    ["葡萄灰紫", "#846f86", [0x846f86, 0xaa97a6, 0xd2c2cb]],
   ],
   ribbon: [
     ["雾蓝", "#879fb8"],
@@ -27,6 +31,10 @@ export const colors = {
     ["珍珠银", "#c1c4cc"],
     ["奶油黄", "#eed88c"],
     ["珊瑚粉", "#e1a394"],
+    ["深可可", "#534037"],
+    ["钢蓝", "#57768d"],
+    ["覆盆子红", "#a73a58"],
+    ["鼠尾草绿", "#87977a"],
   ],
   card: [
     ["无卡片", null],
@@ -39,6 +47,10 @@ export const colors = {
     ["奶黄", "#f3e8bd"],
     ["青瓷", "#caddd5"],
     ["蜜桃粉", "#f2cfbe"],
+    ["旧信纸米", "#e7d8b9"],
+    ["墨蓝", "#29394f"],
+    ["胭脂红", "#81384b"],
+    ["深森林绿", "#304b40"],
   ],
   background: [
     ["暖黄", "#f5e9cd"],
@@ -50,6 +62,8 @@ export const colors = {
     ["森林绿", "#465c52"],
     ["夜海蓝", "#404f68"],
     ["浅樱粉", "#e0c4c9"],
+    ["可可暗室", "#57463e"],
+    ["石膏白墙", "#e9e6de"],
   ],
   lamp: [
     ["自然白", "#f7f5ed", [1, 1, 1]],
@@ -64,3 +78,17 @@ export const colors = {
   ],
 };
 export const swatches = Object.fromEntries(Object.entries(colors).map(([key, rows]) => [key, rows.map(row => row[1])]));
+
+// Choose the higher contrast ink for the card surface, including future colors.
+export function cardInk(hex) {
+  function luminance(color) {
+    const channels = color.slice(1).match(/../g).map(pair => {
+      const value = parseInt(pair, 16) / 255;
+      return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    });
+    return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  }
+  const surface = luminance(hex) + .05;
+  const light = '#fff8e9', dark = '#263e35';
+  return (luminance(light) + .05) / surface > surface / (luminance(dark) + .05) ? light : dark;
+}

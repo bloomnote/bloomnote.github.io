@@ -81,3 +81,13 @@ input{width:100%;padding:6px}[hidden]{display:none!important}
 .signature-line{justify-content:flex-end}
 #letter-to,#letter-from{overflow-wrap:anywhere;margin:0 0 1em}
 #letter-from{text-align:right;margin:1em 0 0}
+
+.gallery-link{display:block;width:fit-content;color:var(--ink);margin:0 0 1rem;text-underline-offset:4px}
+#flower-meaning{border-left:2px solid var(--rule);padding-left:.7em;color:var(--ink);font-size:.93rem}
+#meanings{margin:1em 0}#meanings summary{cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+#meanings dl{margin:.7rem 0}#meanings dt{font-weight:bold}#meanings dd{margin:0 0 .55em}
+.rowan-forms{display:inline-flex;align-items:center;gap:.25em;flex-wrap:wrap}
+#ribbon-field{display:block;font-size:.9rem;margin:.6em 0 1em}#ribbon-field[hidden]{display:none}
+#ribbon-print{display:block;max-width:100%;padding:.35em .5em;border:1px solid var(--rule);background:#fffdf6}
+#letter-reverse{min-height:5rem;overflow-wrap:anywhere;white-space:pre-wrap;font-size:.9rem}
+#flip-card{text-decoration:underline;text-underline-offset:4px}

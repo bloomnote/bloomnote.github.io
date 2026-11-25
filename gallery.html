@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#263e35">
+<title>花材三视图 · 花间手帖</title>
+<style>
+@font-face{font-family:Huiwen;src:url('./huiwen.otf') format('opentype');font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#293e36;color:#263e35;font:16px/1.6 Huiwen,"Songti SC",serif}
+main{width:min(100% - 24px,960px);margin:16px auto 40px;padding:clamp(16px,4vw,40px);background:#f7f4e9;border:double 4px #b8baab}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px}header img{width:110px;height:auto}a{color:inherit;text-underline-offset:4px}
+h1{font-weight:500;font-size:clamp(26px,5vw,38px);margin:.65em 0 .3em}h2{font-weight:500;font-size:1.25rem;margin:0 0 10px}
+section{padding:18px 0;border-top:1px solid #c5c8b9}
+.views{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(4px,1.5vw,16px)}
+button{font:inherit;color:inherit;cursor:pointer}
+.view{display:grid;gap:5px;padding:0;background:none;border:0;text-align:center}
+.view img,#large{display:block;width:100%;background:radial-gradient(ellipse at 44% 34%,#e4e0d1,#c9c3b8);aspect-ratio:1;object-fit:contain}
+.view:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #3c6148;outline-offset:2px}
+dialog{color:inherit;background:#f6f3e8;border:1px solid #7e8879;padding:12px;width:min(92vw,650px);max-height:94dvh;overflow:auto}dialog::backdrop{background:#192b24c9}
+dialog header{margin:0 0 10px}dialog button{border:1px solid #a3ad9d;background:transparent;padding:5px 12px}
+@media(max-width:480px){main{padding:14px;width:calc(100% - 12px);margin:8px auto 20px}section{padding:13px 0}.view{font-size:14px}}
+.sources{font-size:.9rem;border-top:1px solid #c5c8b9;padding-top:1em}.sources summary{cursor:pointer}.sources ul{padding-left:1.4em}
+</style>
+<main>
+<header><img src="./bloomnote.png" alt="Bloomnote"><a href="./index.html">返回花艺工作台</a></header>
+<h1>花材三视图</h1>
+<p id="status" role="status">正在绘制花材…</p>
+<div id="specimens"></div>
+<details class="sources">
+<summary>花材实物参考</summary>
+<ul>
+<li>重瓣茉莉 · <a href="https://www.logees.com/products/jasmine-grand-duke-of-tuscany">Logee’s「托斯卡纳大公」</a></li>
+<li>洋牡丹 · <a href="https://plants.ces.ncsu.edu/plants/ranunculus-asiaticus/">北卡州立大学植物图鉴</a></li>
+<li>文心兰 · <a href="https://www.aos.org/explore/oncidium">美国兰花协会</a> · <a href="https://www.hanadonya.com/product/we-0021-v.html">Gower Ramsey 鲜切花实拍</a></li>
+<li>白掌 · <a href="https://plants.ces.ncsu.edu/plants/spathiphyllum/">北卡州立大学植物图鉴</a></li>
+<li>垂穗苋 · <a href="https://library.floretflowers.com/collections/seeds/products/amaranth-coral-fountain">Floret 花圃「Coral Fountain」</a></li>
+<li>花楸春花与秋果 · <a href="https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/rowan/">英国林地信托</a> · <a href="https://www.treesandshrubsonline.org/articles/sorbus/sorbus-aucuparia/">国际树木学会形态图鉴</a></li>
+</ul>
+</details>
+</main>
+<dialog id="detail" aria-labelledby="detail-name">
+<header><strong id="detail-name"></strong><form method="dialog"><button autofocus>收起</button></form></header>
+<img id="large" alt="">
+</dialog>
+<script type="module" src="./gallery.js"></script>
+</html>

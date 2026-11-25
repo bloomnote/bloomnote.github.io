@@ -7,13 +7,18 @@ export const flowers = [
  ['薰衣草','lavender','9c87ba'],['飞燕草','spire','7794cd'],['乒乓菊','pom','d3df9e'],
  ['小苍兰','freesia','efcf87'],['牡丹','peony','e5a7b8'],['木棉','kapok','d26a49'],
  ['腊梅','wax','e1bf66'],['玉兰','magnolia','ead7d5'],['桂花','osmanthus','eac381'],
- ['洋甘菊','chamomile','fff9e9']
+ ['洋甘菊','chamomile','fff9e9'],
+ ['重瓣茉莉','jasmine','faf4df'],['洋牡丹','ranunculus','edb293'],
+ ['文心兰','oncidium','efc848'],['白掌','spathiphyllum','f7f4e6'],
+ ['垂穗苋','amaranth','a6445a'],['花楸·春花','rowanSpring','f4eedc'],
+ ['花楸·秋果','rowanAutumn','ce5637']
 ];
 export const foliage = ['蕨叶','橄榄枝','常春藤','雪柳','银叶菊','蒲苇','轻盈草穗'];
 export const shades = {
  '奶白':'f6f1df','奶绿':'ccd9ab','薄荷绿':'dbe6d4','雾蓝':'9ebad4','灰紫':'afa2bd',
  '烟粉':'dcacb4','胭脂红':'ac485d','酒红':'793748','墨蓝':'454979','柠檬奶':'f5dfa0',
- '杏橙':'eaa371','深棕金':'ae8349','淡紫':'c8b7da','樱粉':'ecc2ce','银灰':'bfc7be','白底紫边':'f7f1e3'
+ '杏橙':'eaa371','深棕金':'ae8349','淡紫':'c8b7da','樱粉':'ecc2ce','银灰':'bfc7be','白底紫边':'f7f1e3',
+ '杏桃':'eeaa84','黄油黄':'f1d582','雾霾蓝':'829bb9','覆盆子红':'b33f63','桑葚紫':'784269'
 };
 
 export function botanical(form,{P,sheet,stem,bead,tint,phase,dense,purpleEdge}){
