@@ -31,7 +31,7 @@ function windowShadow(points,indices,[lx,ly,lz]){
 }
 export const lightPositions=[[-.65,.72,.75],[0,1,.52],[.65,.72,.75],[-1,.17,.52],[1,.17,.52],[.45,.24,1]];
 export const lampColors=colors.lamp.map(row => row[2]);
-export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,lamp=0){
+export function prepare({points,colors,indices,wrapStart,cardStart,glassRange},direction=0,lamp=0){
  const position=direction===0?[-.42,.86,.65]:lightPositions[direction],length=Math.hypot(...position);
  const axis=position.map(component=>component/length);
  const tint=lampColors[lamp];
@@ -90,22 +90,23 @@ export function prepare({points,colors,indices,wrapStart,cardStart},direction=0,
    }
 
  }
+ vertices.glassRange=glassRange;
  return vertices;
 }
 export function makeView(canvas){
  let zoom=1;
  let mesh,gl=canvas.getContext('webgl',{alpha:true,antialias:true,preserveDrawingBuffer:true});
- let program,buffer,cam,scale,flat;
+ let program,buffer,cam,scale,flat,glassUniform;
  if(gl){
   program=gl.createProgram();
-  for(const [type,src] of [[gl.VERTEX_SHADER,`attribute vec3 p;attribute vec3 color;uniform vec4 camera;uniform vec2 scale;varying vec3 tint;
+  for(const [type,src] of [[gl.VERTEX_SHADER,`attribute vec3 p;attribute vec3 color;uniform vec4 camera;uniform vec2 scale;varying vec3 tint;varying float glassFacing;
   void main(){float x=p.x*camera.x-p.z*camera.y;float z=p.x*camera.y+p.z*camera.x;
-  float y=(p.y-.04)*camera.z-z*camera.w;gl_Position=vec4(x*scale.x,y*scale.y,-(z*camera.z+(p.y-.04)*camera.w)*.18,1.);tint=color;}`],[gl.FRAGMENT_SHADER,'precision mediump float;varying vec3 tint;void main(){gl_FragColor=vec4(tint,1.);}']]){
+  float y=(p.y-.04)*camera.z-z*camera.w;gl_Position=vec4(x*scale.x,y*scale.y,-(z*camera.z+(p.y-.04)*camera.w)*.18,1.);tint=color;glassFacing=z/max(.001,length(p.xz));}`],[gl.FRAGMENT_SHADER,'precision mediump float;varying vec3 tint;varying float glassFacing;uniform float glass;void main(){float edge=pow(1.-clamp(glassFacing,0.,1.),2.);gl_FragColor=vec4(tint+glass*(.18*edge+.24*exp(-400.*(glassFacing-.76)*(glassFacing-.76))),mix(1.,.20+.48*edge,glass));}']]){
    const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);gl.attachShader(program,sh);
   }
   gl.linkProgram(program);gl.useProgram(program);gl.enable(gl.DEPTH_TEST);buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
   ['p','color'].forEach((name,i)=>{const loc=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,24,i*12);});
-  cam=gl.getUniformLocation(program,'camera');scale=gl.getUniformLocation(program,'scale');
+  glassUniform=gl.getUniformLocation(program,'glass');cam=gl.getUniformLocation(program,'camera');scale=gl.getUniformLocation(program,'scale');
  }else flat=canvas.getContext('2d');
  function projectMesh(yaw,pitch){
   const w=canvas.width,h=canvas.height,unit=zoom*Math.min(w/3.98,h/5.13);
@@ -137,21 +138,25 @@ export function makeView(canvas){
   const w=canvas.width,h=canvas.height,unit=zoom*Math.min(w/3.98,h/5.13);
   const cs=Math.cos(yaw),sn=Math.sin(yaw),ct=Math.cos(pitch),st=Math.sin(pitch);
   if(gl){
-   gl.viewport(0,0,w,h);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.uniform4f(cam,cs,sn,ct,st);gl.uniform2f(scale,unit*2/w,unit*2/h);gl.drawArrays(gl.TRIANGLES,0,mesh.length/6);return;
+   gl.viewport(0,0,w,h);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.uniform4f(cam,cs,sn,ct,st);gl.uniform2f(scale,unit*2/w,unit*2/h);const range=mesh.glassRange;if(!range)gl.drawArrays(gl.TRIANGLES,0,mesh.length/6);else{const [a,b]=range;gl.drawArrays(gl.TRIANGLES,0,a);gl.drawArrays(gl.TRIANGLES,b,mesh.length/6-b);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.enable(gl.CULL_FACE);gl.uniform1f(glassUniform,1);gl.drawArrays(gl.TRIANGLES,a,b-a);gl.uniform1f(glassUniform,0);gl.disable(gl.CULL_FACE);gl.disable(gl.BLEND);}return;
   }
   const img=flat.createImageData(w,h),depth=new Float32Array(w*h).fill(-Infinity);
   const projected=projectMesh(yaw,pitch);
-  for(let j=0;j<projected.length;j+=9){
+  const [ga,gb]=(mesh.glassRange||[0,0]).map(i=>i*3);
+  for(const [lo,hi,glass] of [[0,ga,false],[gb,projected.length,false],[ga,gb,true]])for(let j=lo;j<hi;j+=9){
    const [ax,ay,az,bx,by,bz,cx,cy,cz]=projected.subarray(j,j+9);
    const area=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy);if(Math.abs(area)<.01)continue;
+   if(glass&&area>0)continue;
    const xmax=Math.min(w-1,Math.ceil(Math.max(ax,bx,cx))),ymax=Math.min(h-1,Math.ceil(Math.max(ay,by,cy)));
    const xmin=Math.max(0,Math.floor(Math.min(ax,bx,cx))),ymin=Math.max(0,Math.floor(Math.min(ay,by,cy)));
    for(let y=ymin;y<=ymax;y++)for(let x=xmin;x<=xmax;x++){
     const u=((by-cy)*(x+.5-cx)+(cx-bx)*(y+.5-cy))/area,v=((cy-ay)*(x+.5-cx)+(ax-cx)*(y+.5-cy))/area,k=1-u-v;
     if(u<0||v<0||k<0)continue;
     const z=u*az+v*bz+k*cz,p=y*w+x;if(z<depth[p])continue;depth[p]=z;
-    for(let d=0;d<3;d++)img.data[p*4+d]=255*(u*mesh[2*j+3+d]+v*mesh[2*j+9+d]+k*mesh[2*j+15+d]);
-    img.data[p*4+3]=255;
+    const face=glass?Math.min(1,Math.abs(mesh[2*j]*sn+mesh[2*j+2]*cs)/(Math.hypot(mesh[2*j],mesh[2*j+2])||1)):1;
+    const alpha=glass?.20+.48*(1-face)**2:1,old=img.data[p*4+3]/255,out=alpha+old*(1-alpha);
+    for(let d=0;d<3;d++)img.data[p*4+d]=(alpha*255*(u*mesh[2*j+3+d]+v*mesh[2*j+9+d]+k*mesh[2*j+15+d])+img.data[p*4+d]*old*(1-alpha))/out+(glass?42*Math.exp(-((face-.76)**2)/.0025):0);
+    img.data[p*4+3]=255*out;
    }
   }
   flat.putImageData(img,0,0);

@@ -41,6 +41,7 @@ export function stemsFor(s){
 }
 export function bouquet(s,framing){
  const stems=stemsFor(s),flowers=stems.filter(([k])=>isBloom(k)),fillers=stems.filter(([k])=>!isBloom(k));
+ const lateVase=s.vessel==='late-translation';
  const roundRoses=flowers.length>=24&&flowers.every(([kind])=>kind===1);
  const dense=stems.length>27;
 
@@ -52,7 +53,7 @@ export function bouquet(s,framing){
   const key=kind+'-'+slot;owner=key;
   const clearance=p=>anchors.reduce((gap,a)=>Math.min(gap,Math.hypot(...sub(a.base,p))/(a.radius+radius)),Infinity);
   let best=base;
-  if(!roundRoses&&!original.has(key)&&clearance(base)<1){
+  if(!roundRoses&&!(lateVase&&slot<11)&&!original.has(key)&&clearance(base)<1){
    for(let n=1;n<=96;n++){
     const angle=n*2.39996,spread=.15*Math.sqrt(n);
     const trial=add(base,[spread*cos(angle),.45*spread*sin(angle*1.7),spread*sin(angle)]);
@@ -184,7 +185,7 @@ export function bouquet(s,framing){
   }
  }
  const extent=s.stems?Math.max(0,(Math.sqrt(Math.max(0,flowers.length-1))-2)*.55):0;
- const tie=[0,roundRoses?1-.63*.49*Math.sqrt(flowers.length):-1.30-extent*.94,0];
+ const tie=[0,lateVase?-1.16:roundRoses?1-.63*.49*Math.sqrt(flowers.length):-1.30-extent*.94,0];
  const bareBand=s.fold===6;
  const stemCount=stems.length;
  const bandRadius=.047*Math.sqrt(stemCount)+.036;
@@ -204,6 +205,13 @@ export function bouquet(s,framing){
  const crownHeight=f=>crownRadius*(.28-.38*f)-.10;
  const crownNormal=[];
  const layout=flowers.map(([kind,i],index)=>{
+  if(lateVase){
+   const seats=[[-.55,.28,-.38,.68],[.34,.34,.32,.72],[-.32,1.12,.06,.83],
+    [.16,.21,.46,.94],[-.18,.57,.37,.75],[.08,.78,-.18,.68],
+    [-.23,.66,-.28,.63],[-.90,.24,.21,.64],[.36,-.16,.24,.69],
+    [.30,.96,-.29,.69],[-.20,.31,.64,.79]];
+   if(i<seats.length)return [...seats[i],kind,i];
+  }
   if(roundRoses){
    // Compress the outer spiral to keep neighbouring petals in contact on the slope.
    const fraction=(index+.5)/flowers.length;
@@ -227,7 +235,8 @@ export function bouquet(s,framing){
   const seasonalRadius={jasmine:.53,ranunculus:.51,oncidium:.66,spathiphyllum:.59,
    amaranth:.57,rowanSpring:.66,rowanAutumn:.66}[form];
   const rowan=form==='rowanSpring'||form==='rowanAutumn';
-  if(rowan)y+=.85*r;
+  if(rowan&&lateVase){r*=.84;layout[index][3]=r;}
+  if(rowan)y+=(lateVase?.44:.85)*r;
   if(form==='amaranth'){
    // The tassels hang towards the rim, following the outward lean of this stem.
    const horizontal=Math.hypot(x,z)||1;
@@ -239,7 +248,8 @@ export function bouquet(s,framing){
   const uprightSpray=['amaranth','oncidium','spathiphyllum','rowanSpring','rowanAutumn'].includes(form);
   // Cut ranunculus heads cup upward even on the rear side of a bouquet.
   const facing=form==='ranunculus'?[x*.60,.83+.18*cos(i*1.6),.64+.34*z]:uprightSpray?[(rowan?anchors.at(-1).base[0]:x)*.40,.17,.81+.09*cos(i)]:roundRoses?crownNormal[index]:index>=heads.length?[x*.16+.08,.58-.07*z,.96+.06*z]:kind===2?[x*1.12+.15*sin(i),.85,.46+.30*cos(i)]:lilyStudy?(i===0?[-.29,.31,1]:[.45,.62,.84]):[x*.48,.26+i%3*.24,i<3?1:z+.30];
-  const start=bareBand?bindingPoint(index):tie;
+  const start=lateVase?[.10*cos(i*2.4),-.77,.10*sin(i*2.4)]:bareBand?bindingPoint(index):tie;
+  if(lateVase)stem([-.30*cos(i*2.4),-2.58+.09*sin(i),-.25*sin(i*2.4)],start,.018);
   if(bareBand)stem([start[0]*1.9,tie[1]-.85-.07*cos(i),start[2]*1.9],start,.026);
   if(kind===2){
    let previous=start;
@@ -435,8 +445,48 @@ export function bouquet(s,framing){
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
- let tagSurface;
- if(bareBand){
+ let tagSurface,glassRange;
+ if(lateVase){
+  owner=null;
+  const bottom=-2.69,top=-.78,height=top-bottom;
+  const profile=t=>{
+   if(t<.10)return .40+.90*t;
+   if(t<.42){const q=(t-.10)/.32;return .49+.085*sin(PI*q*.5);}
+   if(t<.78){const q=(t-.42)/.36;return .575-.335*q*q*(3-2*q);}
+   return .24-.015*((t-.78)/.22);
+  };
+  const glass=(u,v)=>{
+   const a=TAU*u,t=v,r=profile(t)*(1+.024*sin(3*a+.8)+.018*sin(a-1.2)*(1-t));
+   return [r*sin(a)+.042*sin(TAU*t)*sin(PI*t),bottom+height*t+.018*sin(2*a)*sin(PI*t),r*cos(a)];
+  };
+  const smoke=rgb(0x62596b),silver=rgb(0xc7bdc8),plum=rgb(0x443e50);
+  glassRange=[indices.length];
+  sheet(72,34,glass,(u,v)=>{
+   const a=TAU*u;
+   const gleam=pow(Math.max(0,cos(a-.72)),22)+.62*pow(Math.max(0,cos(a+2.14)),30);
+   const depth=.5+.5*cos(a+PI);
+   return mix(mix(plum,smoke,.52+.26*v+.08*depth),silver,Math.min(.88,.10+.82*gleam));
+  });
+  glassRange.push(indices.length);
+  const underside=(u,v)=>{const a=PI+(u-.5)*5.72,r=.326+(v-.5)*.089;return [r*sin(a),bottom-.006,r*cos(a)];};
+  sheet(64,1,(u,v)=>[.404*v*sin(TAU*u),bottom,.404*v*cos(TAU*u)],()=>rgb(0x535465));
+  printRibbon('I had been speaking before you knew how to translate me.',(u,v)=>underside((u-.31)/.38,v),sheet,[.3,.3,.35],true);
+  // A heavy base and a restrained steel-blue undertone make the vessel read as glass.
+  sheet(72,5,(u,v)=>{
+   const a=TAU*u,r=.405+.018*v;
+   return [r*sin(a),bottom+.028+.105*v,r*cos(a)];
+  },(u,v)=>mix(rgb(0x3e4655),rgb(0x6b7c8c),.30+.32*v+.15*cos(TAU*u)));
+  sheet(72,5,(u,v)=>{
+   const a=TAU*u,r=.225+.025*sin(PI*v);
+   return [r*sin(a),top+.025*cos(PI*v),r*cos(a)];
+  },(u,v)=>mix(plum,silver,.22+.42*pow(Math.max(0,cos(TAU*u-.72)),18)));
+  sheet(64,1,(u,v)=>{
+   const a=TAU*u,r=.225-.025*v;
+   return [r*sin(a),top-.055*v,r*cos(a)];
+  },()=>rgb(0x302c37));
+  // The card lives behind the shoulder and only becomes legible after rotation.
+  tagSurface=(u,v)=>[(u-.5)*.68-.08,bottom+.86+v*.78,-profile(.57)-.035-.055*u];
+ }else if(bareBand){
   const band=(u,v)=>{
    const a=u*TAU;
    return [bandRadius*sin(a),tie[1]+(v-.5)*bandHeight,bandRadius*cos(a)];
@@ -525,7 +575,26 @@ export function bouquet(s,framing){
  });
  const handleStart=points.length;
  const silkColor=parseInt(paletteColors.ribbon[s.ribbon][1].slice(1),16),silk=rgb(silkColor);
- if(bareBand){
+ if(lateVase){
+  const neckRadius=.237,neckY=-.88;
+  const edge=(u,v)=>{
+   const a=TAU*u,r=neckRadius+.012*(1-v)+.005*cos(PI*(v-.5));
+   return [r*sin(a),neckY+(v-.5)*.12,r*cos(a)];
+  };
+  sheet(72,3,edge,(u,v)=>mul(silk,.78+.18*v+.08*cos(TAU*u-.45)));
+  printRibbon(s.ribbonPrint,(u,v)=>edge(u,v),sheet,silk,true);
+  for(const sign of [-1,1]){
+   sheet(6,22,(u,v)=>{
+    const arch=sin(PI*v),t=2*u-1;
+    return [.15+sign*(.035+.28*arch)+.048*t,neckY+.02+.126*sin(TAU*v)+.034*t,
+     neckRadius+.025+.10*arch+.018*t];
+   },(u,v)=>mul(silk,.76+.23*u+.10*sin(PI*v)));
+   sheet(4,18,(u,v)=>[ .15+sign*(.035+.16*v)+.050*(u-.5),neckY-.04-(sign>0?.77:.49)*v+.025*sin(PI*v),
+    neckRadius+.045+.21*v*v+.05*sin(PI*v)+.018*u],u=>mul(silk,.79+.23*u));
+  }
+  bead([.15,neckY+.015,neckRadius+.06],[.08,.062,.055],parseInt(paletteColors.ribbon[s.ribbon][1].slice(1),16));
+  if(s.card)stem([.01,-.73,-.08],[.18,-.14,-.43],.014,0x817356);
+ }else if(bareBand){
   const edge=(u,v)=>[(bandRadius+.005)*sin(TAU*u),tie[1]+(v-.5)*.03,(bandRadius+.005)*cos(TAU*u)];
   sheet(48,2,edge,()=>silk);
   printRibbon(s.ribbonPrint,(u,v)=>edge(u-.5,v),sheet,silk,true);
@@ -580,7 +649,11 @@ export function bouquet(s,framing){
  if(s.card){
   // Clip the tag to the outer left shoulder, just beneath its paper lip.
   const tint=rgb(parseInt(paletteColors.card[s.card][1].slice(1),16));
-  const tag=(u,v)=>{const p=tagSurface(.70+.098*u,.84+.169*v);return [p[0]-.023,p[1],p[2]+.032];};
+  const tag=(u,v)=>{
+   if(lateVase)return [.04+.35*u-.10*v,-.22+.40*v+.10*u,-.44-.16*u+.10*v];
+   const p=tagSurface(.70+.098*u,.84+.169*v);
+   return [p[0]-.023,p[1],p[2]+.032];
+  };
   sheet(5,3,tag,()=>tint); bead(tag(.46,.92),[.028,.028,.027],0xaa956c);
  }
  let fit=1,middle=.04;
@@ -599,5 +672,5 @@ export function bouquet(s,framing){
    points[i+2]*=fit;
   }
  }
- return {ranges,anchors,fit,middle,points,colors,indices,wrapStart,cardStart,frontPitch:roundRoses?.55:.08};
+ return {glassRange,ranges,anchors,fit,middle,points,colors,indices,wrapStart,cardStart,frontPitch:roundRoses?.55:.08};
 }

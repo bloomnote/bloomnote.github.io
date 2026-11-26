@@ -1,8 +1,8 @@
 import {flowerMeanings,shadesFor} from './flower-notes.js';
 import {swatches,cardInk} from './colors.js?v=materials1';
 import {flowers,shades} from './botanicals.js?v=materials1';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=materials1';
-import {prepare,makeView} from './flower-view.js?v=materials1';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=vase2';
+import {prepare,makeView} from './flower-view.js?v=vase2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
  if(!hash.startsWith('#flower='))return null;
@@ -75,6 +75,14 @@ const recipes=[
    tones:{32:'奶白'}},
   letter:{note:'有些告白，并没有迟到。它只是先藏在另一种语言里，等我们走过春花与秋果，才终于被彼此读懂。',cardPrint:'原来那时，答案已经在名字里。'},
   meaning:'花楸从春花走到秋果，像一句早已说出的爱，隔着语言与时间，终于有了译文。'}
+ ,{id:'rowan-for-liora-vase',name:'迟来的译文 · 瓶花',scene:true,
+  state:{...initial,blooms:[bloomIds.indexOf(11),bloomIds.indexOf(14),bloomIds.indexOf(31),bloomIds.indexOf(32),bloomIds.indexOf(36),bloomIds.indexOf(37)],sprigs:[],
+   fold:0,paper:15,ribbon:13,card:10,background:9,direction:0,lamp:0,vessel:'late-translation',ribbonPrint:'ROWAN · LIORA',
+   stems:[[36,0],[37,1],[11,2],[32,3],[31,4],[14,5],[36,6],[37,7],[31,8],[11,9],[32,10]],
+   moves:{'36-0':[-.24,-.12,-.08],'37-1':[.20,-.08,.02],'11-2':[-.09,-.20,.31],'32-3':[.12,-.22,.20],'31-4':[-.12,-.18,.13],'14-5':[.12,-.04,.28],'36-6':[-.12,-.16,.10],'37-7':[.09,-.12,.05],'31-8':[.05,-.19,.14],'11-9':[.18,-.34,.18],'32-10':[-.18,-.31,.12]},
+   tones:{32:'奶白'}},
+  letter:{note:'有些告白，并没有迟到。它只是先藏在另一种语言里，等我们走过春花与秋果，才终于被彼此读懂。',cardPrint:'原来那时，答案已经在名字里。'},
+  meaning:'春花与秋果被收进同一只玻璃瓶里。被时间分开的两种语言，在光穿过瓶身时重新相认。'}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 function unpackGift(fragment){
@@ -83,9 +91,9 @@ function unpackGift(fragment){
  if(!/^[A-Za-z0-9_-]{1,20000}$/.test(token))throw new Error('Invalid gift');
  const bytes=Uint8Array.from(atob(token.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
  const values=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
- if(!Array.isArray(values)||![4,5,7,9].includes(values.length)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
+ if(!Array.isArray(values)||![4,5,7,9,10].includes(values.length)||values.some(v=>typeof v!=='string'))throw new Error('Invalid gift');
  const params=new URLSearchParams();
- ['flower','stems','move','note','tones','to','from','cardPrint','ribbonPrint'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
+ ['flower','stems','move','note','tones','to','from','cardPrint','ribbonPrint','vessel'].forEach((name,i)=>{if(values[i])params.set(name,values[i]);});
  return params;
 }
 function packGift(values){
@@ -105,6 +113,8 @@ try{
 const state=gift??structuredClone(chosen?.state??initial),canvas=$('flower'),view=makeView(canvas);
 if(gift){
  state.ribbonPrint=(giftParams.get('ribbonPrint')||'').slice(0,24);
+ const vessel=giftParams.get('vessel');
+ if(vessel==='late-translation')state.vessel=vessel;
 }
 $('ribbon-print').value=state.ribbonPrint||'';
 $('card-print').value=gift&&state.card?(giftParams.get('cardPrint')||'').slice(0,60):(chosen?.letter?.cardPrint||'');
@@ -359,7 +369,7 @@ function refreshCounts(){
 function matchesRecipe(recipe){
  const selected=recipe.state;
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
- const keys=['blooms','sprigs','fold','paper','ribbon','card',...(recipe.scene?['background','direction','lamp','ribbonPrint']:[])];
+ const keys=['blooms','sprigs','fold','paper','ribbon','card',...(recipe.scene?['background','direction','lamp','ribbonPrint','vessel']:[])];
  return same(state.moves||{},selected.moves||{}) && keys.every(k=>same(state[k],selected[k]))
   && same(state.stems,selected.stems) && same(state.tones||{},selected.tones||{});
 }
@@ -375,7 +385,7 @@ function panel(){
   const button=document.createElement('button');button.textContent=recipe.name;
   button.setAttribute('aria-pressed',String(matchesRecipe(recipe)));
   button.onclick=()=>{
-   startDraft();$('quantities').open=false;delete state.stems;delete state.moves;delete state.tones;delete state.ribbonPrint;editMode(false);lastMeaningKind=undefined;
+   startDraft();$('quantities').open=false;delete state.vessel;delete state.stems;delete state.moves;delete state.tones;delete state.ribbonPrint;editMode(false);lastMeaningKind=undefined;
    const scene=recipe.scene?{}:{background:state.background,direction:state.direction,lamp:state.lamp};
    Object.assign(state,structuredClone(recipe.state),scene);
    $('ribbon-print').value=state.ribbonPrint||'';
@@ -387,7 +397,7 @@ function panel(){
   return button;
  }));
  document.querySelector('nav').replaceChildren(...steps.map(([name],i)=>{const b=document.createElement('button');b.textContent=name;b.setAttribute('aria-current',String(i===tab));b.onclick=()=>{tab=i;panel();};return b;}));
- $('picker').replaceChildren(...steps[tab][1].map(key=>{
+ const pickerFields=steps[tab][1].map(key=>{
   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=labels[key];row.className='choices';
   let rowanGroup;
   options[key].forEach((name,i)=>{
@@ -419,7 +429,9 @@ function panel(){
     panel();$('picker').querySelectorAll('fieldset')[steps[tab][1].indexOf(key)].querySelectorAll('button')[i].focus({preventScroll:true});
    };(rowanForm?rowanGroup:row).append(b);
   });field.append(legend,row);return field;
- }));
+ });
+ if(tab===1&&state.vessel){const label=document.createElement('p');label.textContent='专属花器 · 迟译烟紫瓶';pickerFields.splice(0,pickerFields.length,label);}
+ $('picker').replaceChildren(...pickerFields);
  $('quantities').hidden=tab!==0;
  if(tab===0)$('counters').replaceChildren(...[...bloomIds,...sprigIds].map(k=>quantityControl(k,stemNames[k])));
  showFlowerMeaning(lastMeaningKind??stemsFor(state)[0]?.[0]);
@@ -433,7 +445,8 @@ function finish(done){
  $('reply').hidden=!gift||!done;
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
- $('receipt').textContent=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;const unit=isBloom(i)&&![31,33,35,36,37].includes(i)?' 朵':' 枝';return n?n+unit+name:'';}).filter(Boolean).join('、')+'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。';
+ const contents=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;const unit=isBloom(i)&&![31,33,35,36,37].includes(i)?' 朵':' 枝';return n?n+unit+name:'';}).filter(Boolean).join('、');
+ $('receipt').textContent=contents+(state.vessel==='late-translation'?'，插入迟译烟紫玻璃瓶，系'+options.ribbon[state.ribbon]+'丝带。':'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。');
  const meanings=$('meanings');meanings.open=false;
  const list=meanings.querySelector('dl');
  list.replaceChildren();
@@ -472,7 +485,10 @@ function giftURL(){
  const tones=Object.keys(state.tones||{}).length?JSON.stringify(state.tones):'';
  const to=state.card?$('to').value.trim():'',from=state.card?$('from').value.trim():'';
  const cardPrint=state.card?$('card-print').value.trim():'',ribbonPrint=state.ribbonPrint||'';
- if(cardPrint||ribbonPrint)fields.push(tones,to,from,cardPrint,ribbonPrint);
+ if(state.vessel){
+  fields.push(tones,to,from,cardPrint,ribbonPrint,state.vessel);
+ }
+ else if(cardPrint||ribbonPrint)fields.push(tones,to,from,cardPrint,ribbonPrint);
  else if(to||from)fields.push(tones,to,from);
  else if(tones)fields.push(tones);
  url.hash=packGift(fields);
