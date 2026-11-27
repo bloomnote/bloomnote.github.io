@@ -445,45 +445,49 @@ export function bouquet(s,framing){
  // Each sheet opens from the binding, with creases fanning out from the waist.
  const standRadius=crownRadius*.32;
  const wings=[[-1.97,1.49,1.27],[2.04,1.54,1.07],[PI,2.70,1.55],[.10,1.68,-.23]];
- let tagSurface,glassRange;
+ let tagSurface;
  if(lateVase){
   owner=null;
   const bottom=-2.69,top=-.78,height=top-bottom;
   const profile=t=>{
-   if(t<.10)return .40+.90*t;
+   if(t<.10)return .385+1.05*t;
    if(t<.42){const q=(t-.10)/.32;return .49+.085*sin(PI*q*.5);}
    if(t<.78){const q=(t-.42)/.36;return .575-.335*q*q*(3-2*q);}
    return .24-.015*((t-.78)/.22);
   };
-  const glass=(u,v)=>{
+  const vesselWall=(u,v)=>{
    const a=TAU*u,t=v,r=profile(t)*(1+.024*sin(3*a+.8)+.018*sin(a-1.2)*(1-t));
    return [r*sin(a)+.042*sin(TAU*t)*sin(PI*t),bottom+height*t+.018*sin(2*a)*sin(PI*t),r*cos(a)];
   };
-  const smoke=rgb(0x62596b),silver=rgb(0xc7bdc8),plum=rgb(0x443e50);
-  glassRange=[indices.length];
-  sheet(72,34,glass,(u,v)=>{
+  const smoke=rgb(0x9b919c),silver=rgb(0xbab0bc),plum=rgb(0x615462);
+  sheet(72,34,vesselWall,(u,v)=>{
    const a=TAU*u;
-   const gleam=pow(Math.max(0,cos(a-.72)),22)+.62*pow(Math.max(0,cos(a+2.14)),30);
-   const depth=.5+.5*cos(a+PI);
-   return mix(mix(plum,smoke,.52+.26*v+.08*depth),silver,Math.min(.88,.10+.82*gleam));
+   const flow=a+.16*sin(6*v)+.07*cos(11*v+a);
+   const pooling=.36+.12*v+.09*sin(3*flow)+.045*cos(5*flow-2*v);
+   const sheen=.045*pow(Math.max(0,cos(flow-.65)),4)*sin(PI*v);
+   return mix(mix(plum,smoke,pooling),silver,sheen);
   });
-  glassRange.push(indices.length);
-  const underside=(u,v)=>{const a=PI+(u-.5)*5.72,r=.326+(v-.5)*.089;return [r*sin(a),bottom-.006,r*cos(a)];};
-  sheet(64,1,(u,v)=>[.404*v*sin(TAU*u),bottom,.404*v*cos(TAU*u)],()=>rgb(0x535465));
+  const underside=(u,v)=>{const a=PI+(u-.5)*5.72,r=.29+(v-.5)*.089;return [r*sin(a),bottom-.006,r*cos(a)];};
+  sheet(64,1,(u,v)=>vesselWall(u,0).map((n,i)=>i===1?bottom:n*v),()=>rgb(0x535465));
   printRibbon('I had been speaking before you knew how to translate me.',(u,v)=>underside((u-.31)/.38,v),sheet,[.3,.3,.35],true);
-  // A heavy base and a restrained steel-blue undertone make the vessel read as glass.
-  sheet(72,5,(u,v)=>{
-   const a=TAU*u,r=.405+.018*v;
-   return [r*sin(a),bottom+.028+.105*v,r*cos(a)];
-  },(u,v)=>mix(rgb(0x3e4655),rgb(0x6b7c8c),.30+.32*v+.15*cos(TAU*u)));
+  // The raised foot surrounds the recessed inscription.
+  const foot=[[.344,0],[.344,-.032],[.35,-.041],[.367,-.041],[.374,-.032],[.374,0]];
+  for(let i=1;i<foot.length;i++){
+   const [r0,y0]=foot[i-1],[r1,y1]=foot[i];
+   sheet(72,1,(u,v)=>{
+    const r=r0+(r1-r0)*v;
+    return [r*sin(TAU*u),bottom+y0+(y1-y0)*v,r*cos(TAU*u)];
+   },()=>mix(plum,smoke,.22));
+  }
   sheet(72,5,(u,v)=>{
    const a=TAU*u,r=.225+.025*sin(PI*v);
    return [r*sin(a),top+.025*cos(PI*v),r*cos(a)];
   },(u,v)=>mix(plum,silver,.22+.42*pow(Math.max(0,cos(TAU*u-.72)),18)));
   sheet(64,1,(u,v)=>{
-   const a=TAU*u,r=.225-.025*v;
-   return [r*sin(a),top-.055*v,r*cos(a)];
+   const a=TAU*u,r=.225-.035*v;
+   return [r*sin(a),top+.025-.12*v,r*cos(a)];
   },()=>rgb(0x302c37));
+  sheet(64,1,(u,v)=>[.19*v*sin(TAU*u),top-.095,.19*v*cos(TAU*u)],()=>rgb(0x332c38));
   // The card lives behind the shoulder and only becomes legible after rotation.
   tagSurface=(u,v)=>[(u-.5)*.68-.08,bottom+.86+v*.78,-profile(.57)-.035-.055*u];
  }else if(bareBand){
@@ -672,5 +676,5 @@ export function bouquet(s,framing){
    points[i+2]*=fit;
   }
  }
- return {glassRange,ranges,anchors,fit,middle,points,colors,indices,wrapStart,cardStart,frontPitch:roundRoses?.55:.08};
+ return {ranges,anchors,fit,middle,points,colors,indices,wrapStart,cardStart,frontPitch:roundRoses?.55:.08};
 }

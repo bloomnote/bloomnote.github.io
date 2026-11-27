@@ -1,7 +1,7 @@
 import {flowerMeanings,shadesFor} from './flower-notes.js';
 import {swatches,cardInk} from './colors.js?v=materials1';
 import {flowers,shades} from './botanicals.js?v=materials1';
-import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=vase2';
+import {bouquet,options,initial,stemsFor,bloomIds,sprigIds,stemNames,isBloom} from './floristry.js?v=porcelain1';
 import {prepare,makeView} from './flower-view.js?v=vase2';
 const $=id=>document.getElementById(id), keys=Object.keys(initial);
 function decode(hash,params){
@@ -82,7 +82,7 @@ const recipes=[
    moves:{'36-0':[-.24,-.12,-.08],'37-1':[.20,-.08,.02],'11-2':[-.09,-.20,.31],'32-3':[.12,-.22,.20],'31-4':[-.12,-.18,.13],'14-5':[.12,-.04,.28],'36-6':[-.12,-.16,.10],'37-7':[.09,-.12,.05],'31-8':[.05,-.19,.14],'11-9':[.18,-.34,.18],'32-10':[-.18,-.31,.12]},
    tones:{32:'奶白'}},
   letter:{note:'有些告白，并没有迟到。它只是先藏在另一种语言里，等我们走过春花与秋果，才终于被彼此读懂。',cardPrint:'原来那时，答案已经在名字里。'},
-  meaning:'春花与秋果被收进同一只玻璃瓶里。被时间分开的两种语言，在光穿过瓶身时重新相认。'}
+  meaning:'春花与秋果被收进同一只烟紫釉瓷瓶里。被时间分开的两种语言，在这里重新相认。'}
 ];
 const chosen=recipes.find(r=>r.id===new URLSearchParams(location.search).get('bouquet'));
 function unpackGift(fragment){
@@ -446,7 +446,7 @@ function finish(done){
  $('editor').hidden=done;$('finished').hidden=!done;$('back').hidden=!!gift;
  $('over').textContent=gift?'收花手帖':done?'成束预览':'花艺工作台';$('title').textContent=gift?'送你一束花':done?'你的花束':'包一束花';
  const contents=[...bloomIds,...sprigIds].map(i=>{const name=state.tones?.[i]?state.tones[i]+({0:'百合',1:'玫瑰',2:'郁金香',6:'绣球'}[i]||stemNames[i]):stemNames[i];const n=stemsFor(state).filter(([k])=>k===i).length;const unit=isBloom(i)&&![31,33,35,36,37].includes(i)?' 朵':' 枝';return n?n+unit+name:'';}).filter(Boolean).join('、');
- $('receipt').textContent=contents+(state.vessel==='late-translation'?'，插入迟译烟紫玻璃瓶，系'+options.ribbon[state.ribbon]+'丝带。':'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。');
+ $('receipt').textContent=contents+(state.vessel==='late-translation'?'，插入迟译烟紫釉瓷瓶，系'+options.ribbon[state.ribbon]+'丝带。':'，配'+options.paper[state.paper]+'包装纸与'+options.ribbon[state.ribbon]+'丝带。');
  const meanings=$('meanings');meanings.open=false;
  const list=meanings.querySelector('dl');
  list.replaceChildren();
